@@ -1,0 +1,7 @@
+manufacturer: Example CHP
+model: EC-500
+source: placeholder, replace with a real datasheet
+rated_electrical_kw: 500
+electrical_efficiency: 0.38
+thermal_efficiency: 0.45
+min_load_fraction: 0.5

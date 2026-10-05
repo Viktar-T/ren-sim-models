@@ -1,0 +1,8 @@
+manufacturer: Example VAWT
+model: EV-10
+source: placeholder, replace with a real datasheet
+rotor_type: savonius
+rated_power_kw: 10
+swept_area_m2: 20
+tsr: [0.2, 0.5, 0.8, 1.0]
+cp: [0.05, 0.20, 0.25, 0.10]
