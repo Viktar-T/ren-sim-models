@@ -3,7 +3,7 @@
 I/O contract
   input : HAWTInputs (TimeSeries, one shared index): wind_speed, temp_air, pressure
   output: PlantOutput, power_kw (kW) on the input index.
-Datasheet: producer data in YAML (see datasheets/), loaded via HAWTDatasheet.from_yaml.
+Datasheet: YAML in kioze_sim/datasheets/hawt/, loaded via HAWTDatasheet.bundled(name).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from kioze_sim.plants.base import Plant, PlantOutput, PlantParams, TimeSeries
 
 
 class HAWTDatasheet(Datasheet):
+    shelf = "hawt"
     rated_power_kw: float
     rotor_diameter_m: float
     wind_speed_ms: list[float]  # power curve x

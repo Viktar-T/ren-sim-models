@@ -3,7 +3,7 @@
 I/O contract
   input : VAWTInputs (TimeSeries, one shared index): wind_speed, temp_air, pressure
   output: PlantOutput, power_kw (kW) on the input index.
-Datasheet: producer data in YAML (see datasheets/), loaded via VAWTDatasheet.from_yaml.
+Datasheet: YAML in kioze_sim/datasheets/vawt/, loaded via VAWTDatasheet.bundled(name).
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from kioze_sim.plants.base import Plant, PlantOutput, PlantParams, TimeSeries
 
 
 class VAWTDatasheet(Datasheet):
+    shelf = "vawt"
     rotor_type: Literal["darrieus", "savonius"]
     rated_power_kw: float
     swept_area_m2: float

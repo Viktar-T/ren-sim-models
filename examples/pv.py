@@ -7,15 +7,13 @@ from pathlib import Path
 
 import pandas as pd
 
-import kioze_sim.plants.pv
 from kioze_sim.plants.pv import PVDatasheet, PVInputs, PVParams, PVPlant
 
 HERE = Path(__file__).resolve().parent
 
-# 1. The solar module (one panel): the manufacturer's numbers, kept in a YAML datasheet.
-#    The library ships an example one; swap in your own file for a real module.
-datasheet_path = Path(kioze_sim.plants.pv.__file__).parent / "datasheets" / "example.yaml"
-module = PVDatasheet.from_yaml(datasheet_path)
+# 1. The solar module (one panel): the manufacturer's numbers, from a real datasheet shipped
+#    with the library. PVDatasheet.available() lists the others.
+module = PVDatasheet.bundled("jinko_solar_jkm440n_54hl4r_b")
 
 # 2. The installation: where it is, how the panels face, how many, and the inverter
 #    (the box that turns the panels' DC into AC for the house and grid).
@@ -27,7 +25,7 @@ params = PVParams(
     altitude_m=119,
     tilt_deg=35,  # panel angle from flat ground
     azimuth_deg=180,  # facing south
-    n_modules=10,  # 10 x 400 W = 4 kW of panels
+    n_modules=10,  # 10 x 440 W = 4.4 kW of panels
     inverter_ac_kw=4.0,
 )
 plant = PVPlant(params)

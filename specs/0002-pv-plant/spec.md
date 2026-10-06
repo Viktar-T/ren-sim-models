@@ -119,7 +119,7 @@ Steps longer than 1 hour are rejected because PV output is not proportional to a
 
 ## Interface
 
-`PVDatasheet` (module product data, YAML in `plants/pv/datasheets/`):
+`PVDatasheet` (module product data, YAML in `kioze_sim/datasheets/pv/`):
 
 | Field | Unit | Allowed | Meaning |
 |---|---|---|---|
@@ -246,3 +246,4 @@ Validation
 - 2026-10-05 PV-008..013 retired: they restated pvlib's physics, which pvlib tests itself. Replaced
   by PV-020 (parameters and weather reach pvlib as mapped) and PV-021 (results come back as mapped);
   PV-006/007/014 reworded to our part. The physics is checked only end to end, by PV-018
+- 2026-10-06 datasheet location updated to `kioze_sim/datasheets/pv/` (constitution 13)

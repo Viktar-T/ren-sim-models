@@ -1,0 +1,6 @@
+manufacturer: REC Solar
+model: REC430AA Pure-R
+source: REC Alpha Pure-R datasheet (IEC AU CEC 10.2025 V4.2),
+  https://www.recgroup.com/sites/default/files/2025-11/DS_Alpha_Pure-R_IEC_EN_AUCEC_101125_0.pdf
+pdc0_w: 430            # Power Output PMAX at STC
+gamma_pdc_per_k: -0.0024  # temperature coefficient of PMAX, -0.24 %/degC

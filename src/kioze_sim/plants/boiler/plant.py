@@ -3,7 +3,7 @@
 I/O contract
   input : BoilerInputs (TimeSeries, one shared index): heat_demand_kw
   output: PlantOutput, power_kw (kW) on the input index.
-Datasheet: producer data in YAML (see datasheets/), loaded via BoilerDatasheet.from_yaml.
+Datasheet: YAML in kioze_sim/datasheets/boiler/, loaded via BoilerDatasheet.bundled(name).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from kioze_sim.plants.base import Plant, PlantOutput, PlantParams, TimeSeries
 
 
 class BoilerDatasheet(Datasheet):
+    shelf = "boiler"
     rated_thermal_kw: float
     efficiency: float
 

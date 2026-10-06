@@ -1,0 +1,6 @@
+manufacturer: LONGi
+model: LR5-54HTH-430M
+source: LONGi datasheet Hi-MO X6 LR5-54HTH 420~440M (20230926V19),
+  https://static.longi.com/Hi_MO_X6_LR_5_54_HTH_420_440_M_V1_30_30_and_15_V19_ES_db17b180be.pdf
+pdc0_w: 430            # Pmax at STC
+gamma_pdc_per_k: -0.0029  # temperature coefficient of Pmax, -0.290 %/degC

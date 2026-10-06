@@ -6,7 +6,7 @@ One directory per case: `tests/golden/<plant>/<case>/` where `<plant>` is a key 
 ```
 case.yaml      params: {...}        # PlantParams fields, except the datasheet
                inputs: {...}        # optional extra kwargs for the Inputs model
-               datasheet: file.yaml # path relative to the case dir, or a plant's bundled datasheets/ name
+               datasheet: file.yaml # path relative to the case dir, or a bundled datasheet name (Datasheet.available())
                rtol: 0.02           # relative tolerance
                atol: 0.1            # absolute tolerance in kW (kWh for expected_energy_kwh)
                expected_energy_kwh: 4200.0  # optional: compare total energy over inputs.csv

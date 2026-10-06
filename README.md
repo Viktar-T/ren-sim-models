@@ -24,11 +24,11 @@ uv run pytest && uv run python scripts/spec_check.py
 ```
 src/kioze_sim/
   datasheet.py  timegrid.py  portfolio.py
+  datasheets/<tech>/*.yaml        producer data, one folder per plant type (Datasheet.bundled)
   plants/
     base.py                       Plant interface
     pv/ hawt/ vawt/ biogas/ boiler/
       plant.py                    Params + Datasheet + Inputs (pydantic v2) + Plant
-      datasheets/*.yaml           producer data
 specs/                            specs + constitution
 tests/golden/<plant>/<case>/      golden datasets; tests/harness.py runs them
 ```

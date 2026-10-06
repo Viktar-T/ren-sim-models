@@ -20,7 +20,7 @@ Out: any concrete technology; weather fetching; resampling helpers; dispatch/opt
 - **CORE-003** Plant parameter models MUST be immutable and reject unknown fields.
 - **CORE-004** A plant that declares a `TimeSeries` MUST return a `PlantOutput` whose `power_kw` is a Series named `power_kw`, finite, >= 0, on the input's index; a plant that declares none MUST be called without one and MUST return a scalar steady-state `power_kw`. Wrong or missing structs MUST raise.
 - **CORE-005** `Portfolio.simulate` MUST take a TimeSeries per plant name (omitted for no-input plants) and return one column per plant plus `total`; it MUST reject duplicate names, plants on different time axes, and portfolios with no time-series plant. Scalar plants are broadcast onto the common axis.
-- **CORE-006** Producer data MUST live in YAML under the plant's `datasheets/` and be loaded through a pydantic `Datasheet` subclass that rejects unknown fields.
+- **CORE-006** Producer data MUST live in YAML under `kioze_sim/datasheets/<tech>/` and be loaded through a pydantic `Datasheet` subclass that rejects unknown fields.
 - **CORE-007** The golden harness MUST discover `tests/golden/<plant>/<case>/` cases and fail when output differs from the expected values beyond the case tolerance.
 - **CORE-008** Each technology MUST be its own package under `kioze_sim.plants` exposing a `Plant` subclass, a `PlantParams` subclass containing a `Datasheet`, and its own `TimeSeries` struct (or none), and be registered in `REGISTRY`.
 ## Acceptance
@@ -35,3 +35,4 @@ Out: any concrete technology; weather fetching; resampling helpers; dispatch/opt
 - 2026-10-05 weather removed from the core contract; plants own their inputs models
 - 2026-10-05 inputs = one plant-specific `TimeSeries` struct (shared index) or none; no-input plants return a scalar; CORE-009 (weather helper) dropped
 - 2026-10-05 golden harness: optional `expected_energy_kwh` (total energy) check, needed by PV-018; covered by CORE-007
+- 2026-10-06 CORE-006: datasheets move to the central `kioze_sim/datasheets/<tech>/` (constitution 13); files move as part of 0007

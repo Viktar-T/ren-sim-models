@@ -34,8 +34,8 @@ Out:
   `uv sync --all-extras`, without network access and without arguments.
 - **EX-003** `examples/pv.py` MUST use only the public API (`kioze_sim`, `kioze_sim.plants.pv`), never
   modules whose name starts with `_`.
-- **EX-004** `examples/pv.py` MUST load the module datasheet from the bundled
-  `kioze_sim/plants/pv/datasheets/example.yaml` via `PVDatasheet.from_yaml`.
+- **EX-004** `examples/pv.py` MUST load a real bundled module datasheet by name via
+  `PVDatasheet.bundled(...)` (see 0007), not by building a file path.
 - **EX-005** `examples/pv.py` MUST read its weather from `examples/pv_weather.csv`: one day of hourly
   rows with columns `time` (UTC, ISO 8601), `ghi_w_m2`, `temp_air_c`, `wind_speed_m_s`, found relative
   to the script so it runs from any working directory.
@@ -56,3 +56,4 @@ a total in kWh; another test checks the folder is flat and the script imports no
 - 2026-10-06 created
 - 2026-10-06 open questions resolved (CSV weather, text output), approved
 - 2026-10-06 implemented
+- 2026-10-06 EX-004: load a real bundled datasheet by name via `PVDatasheet.bundled` (0007)

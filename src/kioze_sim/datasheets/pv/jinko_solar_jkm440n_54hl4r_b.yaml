@@ -1,0 +1,6 @@
+manufacturer: Jinko Solar
+model: JKM440N-54HL4R-B
+source: Jinko Solar datasheet JKM425-445N-54HL4R-B-F2-EN (2022),
+  https://jinkosolar.eu/wp-content/uploads/JKM425-445N-54HL4R-B-F2-EN.pdf
+pdc0_w: 440            # Maximum Power (Pmax) at STC
+gamma_pdc_per_k: -0.0029  # temperature coefficient of Pmax, -0.29 %/degC

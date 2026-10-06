@@ -7,6 +7,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from kioze_sim.plants.pv import PVDatasheet
+
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 PV = EXAMPLES / "pv.py"
 needs_pvlib = pytest.mark.skipif(find_spec("pvlib") is None, reason="needs the 'pv' extra")
@@ -46,8 +48,9 @@ def test_pv_example_uses_public_api_only() -> None:
 @pytest.mark.spec("EX-004")
 def test_pv_example_loads_bundled_datasheet() -> None:
     src = PV.read_text()
-    assert "PVDatasheet.from_yaml" in src
-    assert '"datasheets"' in src and '"example.yaml"' in src
+    m = re.search(r'PVDatasheet\.bundled\("(\w+)"\)', src)
+    assert m and m.group(1) in PVDatasheet.available()
+    assert "from_yaml" not in src and '"datasheets"' not in src
 
 
 @pytest.mark.spec("EX-005")
@@ -67,7 +70,7 @@ def test_pv_example_prints_power_and_total(pv_run: subprocess.CompletedProcess[s
     assert out.count(" kW") >= 24
     total = re.search(r"Total.*?([\d.]+) kWh", out)
     assert total is not None
-    assert 5 < float(total.group(1)) < 40  # 4 kWp on a sunny June day: sensible, not validated
+    assert 5 < float(total.group(1)) < 40  # ~4 kWp on a sunny June day: sensible, not validated
 
 
 @pytest.mark.spec("EX-007")

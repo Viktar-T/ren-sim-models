@@ -20,6 +20,8 @@ Project-wide rules. A spec may not contradict these; change them here, deliberat
 9. **Units in names.** `power_kw`, `energy_kwh`, `temp_c`. Power is average over the period.
 10. **Vectorise by default.** Loops only where state forces them; measure before optimising.
 11. **One module per plant.** `kioze_sim/plants/<tech>/` holds that plant's pydantic params, its
-    YAML datasheet model, bundled `datasheets/*.yaml` and the `Plant` subclass. Nothing shared lives there.
+    YAML datasheet model and the `Plant` subclass. Nothing shared lives there.
+13. **Data apart from code.** Bundled datasheets live in one place, `kioze_sim/datasheets/<tech>/*.yaml`,
+    one sub-folder per plant type. Plant packages hold code only.
 12. **Golden datasets.** Each plant is validated by golden cases in `tests/golden/<tech>/<case>/` from
     an independent reference, run by `tests/harness.py`.

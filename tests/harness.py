@@ -38,13 +38,11 @@ def build_plant(case: GoldenCase, registry: dict[str, type[Plant]] | None = None
     spec = yaml.safe_load((case.path / "case.yaml").read_text())
     ds_name = spec["datasheet"]
     ds_path = case.path / ds_name
-    if not ds_path.exists():  # fall back to the plant's bundled datasheets
-        import importlib
-
-        pkg = importlib.import_module(cls.__module__.rsplit(".", 1)[0])
-        ds_path = Path(pkg.__file__).parent / "datasheets" / ds_name  # type: ignore[arg-type]
     ds_model = cls.params_model.model_fields["datasheet"].annotation
-    datasheet = ds_model.from_yaml(ds_path)  # type: ignore[union-attr]
+    if ds_path.exists():
+        datasheet = ds_model.from_yaml(ds_path)  # type: ignore[union-attr]
+    else:  # a bundled datasheet name, e.g. "jinko_solar_jkm440n_54hl4r_b"
+        datasheet = ds_model.bundled(ds_name)  # type: ignore[union-attr]
     return cls(cls.params_model(datasheet=datasheet, **spec["params"]))
 
 

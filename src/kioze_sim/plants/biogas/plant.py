@@ -3,7 +3,7 @@
 I/O contract
   input : BiogasInputs (TimeSeries, one shared index): feedstock_t_per_day
   output: PlantOutput, power_kw (kW) on the input index.
-Datasheet: producer data in YAML (see datasheets/), loaded via BiogasDatasheet.from_yaml.
+Datasheet: YAML in kioze_sim/datasheets/biogas/, loaded via BiogasDatasheet.bundled(name).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from kioze_sim.plants.base import Plant, PlantOutput, PlantParams, TimeSeries
 
 
 class BiogasDatasheet(Datasheet):
+    shelf = "biogas"
     rated_electrical_kw: float
     electrical_efficiency: float
     thermal_efficiency: float

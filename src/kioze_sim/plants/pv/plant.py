@@ -4,7 +4,7 @@ I/O contract
   input : PVInputs (TimeSeries, one shared index, period averages labelled at period start):
           ghi_w_m2, temp_air_c, wind_speed_m_s, optionally dni_w_m2 + dhi_w_m2
   output: PVOutput, power_kw (AC kW) plus dc_kw, poa_w_m2, temp_cell_c on the input index.
-Datasheet: producer data in YAML (see datasheets/), loaded via PVDatasheet.from_yaml.
+Datasheet: YAML in kioze_sim/datasheets/pv/, loaded via PVDatasheet.bundled(name).
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ Mounting = Literal[
 
 
 class PVDatasheet(Datasheet):
+    shelf = "pv"
+
     model_config = ConfigDict(allow_inf_nan=False)
 
     pdc0_w: float = Field(gt=0)  # rated module power at STC
