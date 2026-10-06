@@ -26,6 +26,6 @@ def test_datasheet_rejects_unknown_field(tmp_path):
     from kioze_sim.plants.pv import PVDatasheet
 
     f = tmp_path / "d.yaml"
-    f.write_text("manufacturer: a\nmodel: b\npdc0_w: 1\ngamma_pdc_per_k: 0\narea_m2: 1\nbogus: 2\n")
+    f.write_text("manufacturer: a\nmodel: b\npdc0_w: 1\ngamma_pdc_per_k: 0\nbogus: 2\n")
     with pytest.raises(Exception, match="bogus"):
         PVDatasheet.from_yaml(f)

@@ -38,3 +38,7 @@ select = ["E", "F", "I", "UP", "B"]
 strict = true
 files = ["src"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pvlib.*"]
+ignore_missing_imports = true

@@ -1,0 +1,19 @@
+params:
+  name: warsaw_4kwp
+  latitude_deg: 52.23
+  longitude_deg: 21.01
+  altitude_m: 119.0
+  tilt_deg: 35
+  azimuth_deg: 180
+  n_modules: 10
+  inverter_ac_kw: 4.0
+  inverter_efficiency: 0.96
+  losses_pct: 10.4167
+  mounting: open_rack_glass_polymer
+datasheet: module.yaml
+expected_energy_kwh: 4200.86
+rtol: 0.05
+atol: 0.0
+source: PVGIS 5.3 (https://re.jrc.ec.europa.eu/api/v5_3/) PVcalc E_y and TMY, PVGIS-SARAH3 2005-2023,
+  no horizon, fetched 2026-10-05; TMY relabelled by -19 min (PVGIS snapshot minute 11). Built by make_pvgis_case.py
+  from _source/.

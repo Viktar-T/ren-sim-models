@@ -1,0 +1,6 @@
+manufacturer: Generic
+model: c-Si 400 W
+source: typical crystalline-silicon values for the PV-018 case (PVGIS uses its own
+  generic c-Si model)
+pdc0_w: 400
+gamma_pdc_per_k: -0.0035

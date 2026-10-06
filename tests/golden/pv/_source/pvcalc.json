@@ -1,0 +1,331 @@
+{
+ "inputs": {
+  "location": {
+   "latitude": 52.23,
+   "longitude": 21.01,
+   "elevation": 119.0
+  },
+  "meteo_data": {
+   "radiation_db": "PVGIS-SARAH3",
+   "meteo_db": "ERA5",
+   "year_min": 2005,
+   "year_max": 2023,
+   "use_horizon": false,
+   "horizon_db": null
+  },
+  "mounting_system": {
+   "fixed": {
+    "slope": {
+     "value": 35,
+     "optimal": false
+    },
+    "azimuth": {
+     "value": 0,
+     "optimal": false
+    },
+    "type": "free-standing"
+   }
+  },
+  "pv_module": {
+   "technology": "c-Si",
+   "peak_power": 4.0,
+   "system_loss": 14.0
+  },
+  "economic_data": {
+   "system_cost": null,
+   "interest": null,
+   "lifetime": null
+  }
+ },
+ "outputs": {
+  "monthly": {
+   "fixed": [
+    {
+     "month": 1,
+     "E_d": 4.26,
+     "E_m": 132.15,
+     "H(i)_d": 1.22,
+     "H(i)_m": 37.96,
+     "SD_m": 26.43
+    },
+    {
+     "month": 2,
+     "E_d": 7.12,
+     "E_m": 199.27,
+     "H(i)_d": 2.02,
+     "H(i)_m": 56.63,
+     "SD_m": 38.99
+    },
+    {
+     "month": 3,
+     "E_d": 11.51,
+     "E_m": 356.83,
+     "H(i)_d": 3.42,
+     "H(i)_m": 106.14,
+     "SD_m": 67.77
+    },
+    {
+     "month": 4,
+     "E_d": 15.88,
+     "E_m": 476.27,
+     "H(i)_d": 4.89,
+     "H(i)_m": 146.63,
+     "SD_m": 75.78
+    },
+    {
+     "month": 5,
+     "E_d": 16.91,
+     "E_m": 524.09,
+     "H(i)_d": 5.36,
+     "H(i)_m": 166.22,
+     "SD_m": 65.76
+    },
+    {
+     "month": 6,
+     "E_d": 18.03,
+     "E_m": 540.93,
+     "H(i)_d": 5.83,
+     "H(i)_m": 174.77,
+     "SD_m": 54.38
+    },
+    {
+     "month": 7,
+     "E_d": 17.19,
+     "E_m": 533.0,
+     "H(i)_d": 5.6,
+     "H(i)_m": 173.68,
+     "SD_m": 60.93
+    },
+    {
+     "month": 8,
+     "E_d": 16.27,
+     "E_m": 504.44,
+     "H(i)_d": 5.28,
+     "H(i)_m": 163.55,
+     "SD_m": 52.31
+    },
+    {
+     "month": 9,
+     "E_d": 13.83,
+     "E_m": 414.96,
+     "H(i)_d": 4.34,
+     "H(i)_m": 130.33,
+     "SD_m": 71.98
+    },
+    {
+     "month": 10,
+     "E_d": 9.21,
+     "E_m": 285.56,
+     "H(i)_d": 2.79,
+     "H(i)_m": 86.55,
+     "SD_m": 67.24
+    },
+    {
+     "month": 11,
+     "E_d": 4.43,
+     "E_m": 132.77,
+     "H(i)_d": 1.33,
+     "H(i)_m": 39.89,
+     "SD_m": 23.91
+    },
+    {
+     "month": 12,
+     "E_d": 3.25,
+     "E_m": 100.61,
+     "H(i)_d": 0.96,
+     "H(i)_m": 29.72,
+     "SD_m": 26.48
+    }
+   ]
+  },
+  "totals": {
+   "fixed": {
+    "E_d": 11.51,
+    "E_m": 350.07,
+    "E_y": 4200.86,
+    "H(i)_d": 3.59,
+    "H(i)_m": 109.34,
+    "H(i)_y": 1312.07,
+    "SD_m": 16.56,
+    "SD_y": 198.71,
+    "l_aoi": -2.96,
+    "l_spec": "1.75",
+    "l_tg": -5.74,
+    "l_total": -19.96
+   }
+  }
+ },
+ "meta": {
+  "inputs": {
+   "location": {
+    "description": "Selected location",
+    "variables": {
+     "latitude": {
+      "description": "Latitude",
+      "units": "decimal degree"
+     },
+     "longitude": {
+      "description": "Longitude",
+      "units": "decimal degree"
+     },
+     "elevation": {
+      "description": "Elevation",
+      "units": "m"
+     }
+    }
+   },
+   "meteo_data": {
+    "description": "Sources of meteorological data",
+    "variables": {
+     "radiation_db": {
+      "description": "Solar radiation database"
+     },
+     "meteo_db": {
+      "description": "Database used for meteorological variables other than solar radiation"
+     },
+     "year_min": {
+      "description": "First year of the calculations"
+     },
+     "year_max": {
+      "description": "Last year of the calculations"
+     },
+     "use_horizon": {
+      "description": "Include horizon shadows"
+     },
+     "horizon_db": {
+      "description": "Source of horizon data"
+     }
+    }
+   },
+   "mounting_system": {
+    "description": "Mounting system",
+    "choices": "fixed, vertical_axis, inclined_axis, two_axis",
+    "fields": {
+     "slope": {
+      "description": "Inclination angle from the horizontal plane",
+      "units": "degree"
+     },
+     "azimuth": {
+      "description": "Orientation (azimuth) angle of the (fixed) PV system (0 = S, 90 = W, -90 = E)",
+      "units": "degree"
+     }
+    }
+   },
+   "pv_module": {
+    "description": "PV module parameters",
+    "variables": {
+     "technology": {
+      "description": "PV technology"
+     },
+     "peak_power": {
+      "description": "Nominal (peak) power of the PV module",
+      "units": "kW"
+     },
+     "system_loss": {
+      "description": "Sum of system losses",
+      "units": "%"
+     }
+    }
+   },
+   "economic_data": {
+    "description": "Economic inputs",
+    "variables": {
+     "system_cost": {
+      "description": "Total cost of the PV system",
+      "units": "user-defined currency"
+     },
+     "interest": {
+      "description": "Annual interest",
+      "units": "%/y"
+     },
+     "lifetime": {
+      "description": "Expected lifetime of the PV system",
+      "units": "y"
+     }
+    }
+   }
+  },
+  "outputs": {
+   "monthly": {
+    "type": "time series",
+    "timestamp": "monthly averages",
+    "variables": {
+     "E_d": {
+      "description": "Average daily energy production from the given system",
+      "units": "kWh/d"
+     },
+     "E_m": {
+      "description": "Average monthly energy production from the given system",
+      "units": "kWh/mo"
+     },
+     "H(i)_d": {
+      "description": "Average daily sum of global irradiation per square meter received by the modules of the given system",
+      "units": "kWh/m2/d"
+     },
+     "H(i)_m": {
+      "description": "Average monthly sum of global irradiation per square meter received by the modules of the given system",
+      "units": "kWh/m2/mo"
+     },
+     "SD_m": {
+      "description": "Standard deviation of the monthly energy production due to year-to-year variation",
+      "units": "kWh"
+     }
+    }
+   },
+   "totals": {
+    "type": "time series totals",
+    "variables": {
+     "E_d": {
+      "description": "Average daily energy production from the given system",
+      "units": "kWh/d"
+     },
+     "E_m": {
+      "description": "Average monthly energy production from the given system",
+      "units": "kWh/mo"
+     },
+     "E_y": {
+      "description": "Average annual energy production from the given system",
+      "units": "kWh/y"
+     },
+     "H(i)_d": {
+      "description": "Average daily sum of global irradiation per square meter received by the modules of the given system",
+      "units": "kWh/m2/d"
+     },
+     "H(i)_m": {
+      "description": "Average monthly sum of global irradiation per square meter received by the modules of the given system",
+      "units": "kWh/m2/mo"
+     },
+     "H(i)_y": {
+      "description": "Average annual sum of global irradiation per square meter received by the modules of the given system",
+      "units": "kWh/m2/y"
+     },
+     "SD_m": {
+      "description": "Standard deviation of the monthly energy production due to year-to-year variation",
+      "units": "kWh"
+     },
+     "SD_y": {
+      "description": "Standard deviation of the annual energy production due to year-to-year variation",
+      "units": "kWh"
+     },
+     "l_aoi": {
+      "description": "Angle of incidence loss",
+      "units": "%"
+     },
+     "l_spec": {
+      "description": "Spectral loss",
+      "units": "%"
+     },
+     "l_tg": {
+      "description": "Temperature and irradiance loss",
+      "units": "%"
+     },
+     "l_total": {
+      "description": "Total loss",
+      "units": "%"
+     }
+    }
+   }
+  }
+ },
+ "fetched": "2026-10-05"
+}

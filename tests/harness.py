@@ -64,6 +64,16 @@ def run_case(case: GoldenCase, registry: dict[str, type[Plant]] | None = None) -
         return
     frame = _read_csv(case.path / "inputs.csv")
     actual = plant.simulate(plant.inputs_model.from_frame(frame, **spec_inputs)).power_kw
+    if "expected_energy_kwh" in spec:  # total-energy case (e.g. annual yield): no expected.csv
+        step_h = (frame.index[1] - frame.index[0]) / pd.Timedelta(hours=1)
+        np.testing.assert_allclose(
+            float(np.sum(actual)) * step_h,
+            spec["expected_energy_kwh"],
+            rtol=spec.get("rtol", 0.02),
+            atol=spec.get("atol", 0.1),
+            err_msg=f"golden case {case.id} energy (source: {spec.get('source', 'n/a')})",
+        )
+        return
     expected = _read_csv(case.path / "expected.csv")["power_kw"]
     np.testing.assert_allclose(
         np.asarray(actual),

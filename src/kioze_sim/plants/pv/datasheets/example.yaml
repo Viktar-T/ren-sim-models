@@ -3,4 +3,3 @@ model: ES-400
 source: placeholder, replace with a real datasheet
 pdc0_w: 400
 gamma_pdc_per_k: -0.0035
-area_m2: 1.95

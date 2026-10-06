@@ -34,3 +34,4 @@ Out: any concrete technology; weather fetching; resampling helpers; dispatch/opt
 - 2026-10-05 added CORE-006..008 (datasheets, golden harness, per-plant modules)
 - 2026-10-05 weather removed from the core contract; plants own their inputs models
 - 2026-10-05 inputs = one plant-specific `TimeSeries` struct (shared index) or none; no-input plants return a scalar; CORE-009 (weather helper) dropped
+- 2026-10-05 golden harness: optional `expected_energy_kwh` (total energy) check, needed by PV-018; covered by CORE-007

@@ -110,3 +110,16 @@ def test_harness_steady_state_case(tmp_path):
     )
     with pytest.raises(AssertionError):
         run_case(case, {"steady": Steady})
+
+
+@pytest.mark.spec("CORE-007")
+def test_harness_total_energy_case(tmp_path):
+    d = _make_case(tmp_path, 1.0)
+    (d / "expected.csv").unlink()
+    spec = {"params": {"name": "d", "scale": 2.0}, "datasheet": "ds.yaml", "rtol": 0.01}
+    (d / "case.yaml").write_text(yaml.safe_dump(spec | {"expected_energy_kwh": 20.0}))
+    (case,) = discover(tmp_path)
+    run_case(case, {"doubler": Doubler})  # 2 + 4 + 6 + 8 kW for 1 h each
+    (d / "case.yaml").write_text(yaml.safe_dump(spec | {"expected_energy_kwh": 22.0}))
+    with pytest.raises(AssertionError, match="energy"):
+        run_case(case, {"doubler": Doubler})
