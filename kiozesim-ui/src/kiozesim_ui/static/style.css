@@ -1,0 +1,26 @@
+/* Plain native-dialog look (UI-003): system font, grey/white, bordered group boxes. */
+body {
+  font: 13px system-ui, "Segoe UI", sans-serif;
+  background: #f0f0f0;
+  color: #000;
+  margin: 12px;
+}
+fieldset {
+  border: 1px solid #a0a0a0;
+  margin: 0 0 10px;
+  padding: 6px 10px 10px;
+  max-width: 980px;
+}
+legend { padding: 0 4px; }
+table { border-collapse: collapse; }
+td, th { padding: 2px 6px 2px 0; text-align: left; }
+input, select, button { font: inherit; }
+input[type="number"], input[type="text"], select { width: 16em; }
+.type { margin-bottom: 6px; }
+.type select { width: 8em; }
+button { min-width: 75px; padding: 2px 8px; }
+.buttons { margin: 0 0 10px; }
+.result { background: #fff; }
+.energy td:last-child { text-align: right; }
+.chart svg { max-width: 100%; height: auto; }
+.error { color: #c00000; }

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kiozesim-ui",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "kiozesim-ui", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 """Traceability check between specs/ and every package's tests/.
 
 Fails when: a requirement ID is malformed or duplicated; a spec marked `implemented` has a
-requirement without a test; a `@pytest.mark.spec("ID")` references an unknown requirement.
+requirement without a test (`done` specs are exempt); a `@pytest.mark.spec("ID")` references an
+unknown requirement.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 REQ_RE = re.compile(r"^- \*\*([A-Z]+-\d{3})\*\*", re.M)
 MARK_RE = re.compile(r"""mark\.spec\(\s*["']([A-Z]+-\d{3})["']""")
 FRONT_RE = re.compile(r"\A---\n(.*?)\n---\n", re.S)
-STATUSES = {"draft", "approved", "implemented"}
+STATUSES = {"draft", "approved", "implemented", "done"}  # done: one-off change, no tests
 
 
 def front_matter(text: str) -> dict[str, str]:

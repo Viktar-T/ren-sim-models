@@ -2,7 +2,7 @@
 id: NNNN
 title: <short title>
 prefix: XXX            # requirement ID prefix, e.g. PV
-status: draft          # draft | approved | implemented
+status: draft          # draft | approved | implemented | done
 ---
 
 # NNNN <title>

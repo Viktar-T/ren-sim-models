@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kiozesim</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<form method="post" action="/">
+<input type="hidden" name="n" value="{{ boxes|length }}">
+{% for box in boxes %}{% set i = loop.index0 %}
+<fieldset class="plant">
+  <legend>Plant {{ loop.index }}</legend>
+  <div class="type">
+    <label for="p{{ i }}.type">type</label>
+    <select id="p{{ i }}.type" name="p{{ i }}.type">
+      {% for t in offered %}<option value="{{ t }}"{% if t == box.type %} selected{% endif %}>{{ t }}</option>{% endfor %}
+    </select>
+    <input type="hidden" name="p{{ i }}.shown_type" value="{{ box.type }}">
+    <button type="submit" name="action" value="apply">Apply</button>
+  </div>
+  <table>
+  {% for f in box.fields %}{% set id = "p" ~ i ~ "." ~ f.name %}{% set v = box.values.get(f.name, "") %}
+    <tr>
+      <td><label for="{{ id }}">{{ f.name }}</label></td>
+      <td>
+      {% if f.kind == "select" %}
+        <select id="{{ id }}" name="{{ id }}">
+          {% for c in f.choices %}<option value="{{ c }}"{% if c == v %} selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      {% elif f.kind == "number" %}
+        <input id="{{ id }}" name="{{ id }}" type="number" step="{{ f.step }}"{% if f.min is not none %} min="{{ f.min }}"{% endif %}{% if f.max is not none %} max="{{ f.max }}"{% endif %} value="{{ v }}">
+      {% else %}
+        <input id="{{ id }}" name="{{ id }}" type="text" value="{{ v }}">
+      {% endif %}
+      </td>
+      <td>{% if box.errors.get(f.name) %}<span class="error" data-for="{{ id }}">{{ box.errors[f.name] }}</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </table>
+</fieldset>
+{% endfor %}
+<div class="buttons">
+  <button type="submit" name="action" value="add" title="Add a plant">+</button>
+  <button type="submit" name="action" value="run" class="run">Run</button>
+</div>
+</form>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if result %}
+<fieldset class="result">
+  <legend>Result</legend>
+  <table class="energy">
+    <tr><th>plant</th><th>energy_kwh</th></tr>
+    {% for name, kwh in result.energy_kwh.items() %}
+    <tr><td>{{ name }}</td><td data-energy-kwh="{{ name }}">{{ "%.2f"|format(kwh) }}</td></tr>
+    {% endfor %}
+  </table>
+  <div class="chart">
+{{ result.chart }}
+  </div>
+</fieldset>
+{% endif %}
+</body>
+</html>

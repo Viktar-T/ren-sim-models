@@ -2,7 +2,7 @@
 id: 0009
 title: Monorepo layout
 prefix: REPO
-status: implemented
+status: done
 ---
 
 # 0009 Monorepo layout
@@ -105,10 +105,8 @@ kioze-sim-lib/
   paths and the install command `uv sync --all-packages --all-extras`.
 
 ## Acceptance
-A test reads the root and member `pyproject.toml` files and checks REPO-001/002/003/005/006. A test
-imports `kiozesim`, `kiozesim_tool` and `kiozesim_ui` and checks the skeletons contain only
-`__init__.py`. A test searches the repository for `kioze_sim`. The full existing suite, `spec_check`,
-`ruff` and `mypy` pass from the root.
+Checked once, when the move was made: the full suite, `spec_check`, `ruff` and `mypy` passed
+from the root. The layout tests were removed afterwards; this spec is a record (status `done`).
 
 ## Open questions
 - [x] Tests: per package, `kiozesim/tests/` (REPO-010).
@@ -123,3 +121,4 @@ imports `kiozesim`, `kiozesim_tool` and `kiozesim_ui` and checks the skeletons c
 - 2026-10-06 REPO-010: only the library's `tests/` may have an `__init__.py` (found while building)
 - 2026-10-06 REPO-012: this spec's own folder is exempt, since it has to name the old package
 - 2026-10-06 implemented
+- 2026-10-06 status `done`: one-off move, kept as a record; its layout tests removed

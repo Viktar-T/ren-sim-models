@@ -24,6 +24,7 @@
 | `draft` | Being written, open questions allowed | IDs well-formed and unique |
 | `approved` | Agreed, not yet built | same as draft |
 | `implemented` | Built | every requirement has >= 1 test marked with its ID |
+| `done` | One-off change already carried out (a move, a rename), kept as a record of the decision. Nothing to keep testing | same as draft |
 
 Additionally, every `@pytest.mark.spec("ID")` in any package's `tests/` must reference an existing
 requirement.
