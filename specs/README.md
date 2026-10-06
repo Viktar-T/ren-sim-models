@@ -11,7 +11,7 @@
 3. **Approve.** Set `status: approved`. From here, requirement text only changes through a spec edit
    (and a changelog line), never silently in code.
 4. **Plan.** Write `plan.md` next to the spec: design, modules touched, external libs, risks.
-5. **Test first.** Add golden cases under `tests/golden/<plant>/` (see its README). For each requirement write at least one test marked `@pytest.mark.spec("PV-001")`.
+5. **Test first.** Add golden cases under `kiozesim/tests/golden/<plant>/` (see its README). For each requirement write at least one test marked `@pytest.mark.spec("PV-001")`.
    Tests fail first.
 6. **Implement** until the tests pass.
 7. **Verify.** `uv run python scripts/spec_check.py` plus `pytest`, `ruff`, `mypy`. Set
@@ -25,7 +25,8 @@
 | `approved` | Agreed, not yet built | same as draft |
 | `implemented` | Built | every requirement has >= 1 test marked with its ID |
 
-Additionally, every `@pytest.mark.spec("ID")` in `tests/` must reference an existing requirement.
+Additionally, every `@pytest.mark.spec("ID")` in any package's `tests/` must reference an existing
+requirement.
 
 ## Requirement format
 
@@ -47,3 +48,7 @@ specs/
     spec.md                what and why (requirements)
     plan.md                how (optional until approved)
 ```
+
+Paths in specs: `kiozesim/datasheets/` (no `src/`) means inside the library's Python package,
+`kiozesim/src/kiozesim/datasheets/`. Paths with `src/` or `tests/` are folders in the repository
+(constitution 14).

@@ -13,16 +13,16 @@ GHI is 0, and convert W to kW. Less of our own physics code means fewer places t
 
 | File | Change |
 |---|---|
-| `src/kioze_sim/plants/pv/plant.py` | rewrite models per the spec's Interface tables; `PVOutput`; `_simulate` |
-| `src/kioze_sim/plants/pv/_engine.py` | **new**: builds and runs the pvlib `ModelChain` (only file importing pvlib) |
-| `src/kioze_sim/plants/pv/__init__.py` | also export `PVOutput` |
-| `src/kioze_sim/plants/pv/datasheets/example.yaml` | drop `area_m2` |
-| `tests/test_pv.py` | **new**: one or more tests per PV-001..016, PV-018 |
-| `tests/golden/pv/make_pvgis_case.py` | **new**: fetches PVGIS data and writes the PV-018 case (network, run by hand) |
-| `tests/golden/pv/warsaw_pvgis_annual/` | **new**: the PV-018 golden case |
-| `tests/harness.py`, `tests/test_harness.py`, `tests/golden/README.md` | optional `expected_energy_kwh` (total energy) check |
-| `tests/test_datasheets.py` | drop `area_m2` from the unknown-field YAML |
-| `tests/conftest.py` | `weather` fixture is unused; delete it |
+| `kiozesim/src/kiozesim/plants/pv/plant.py` | rewrite models per the spec's Interface tables; `PVOutput`; `_simulate` |
+| `kiozesim/src/kiozesim/plants/pv/_engine.py` | **new**: builds and runs the pvlib `ModelChain` (only file importing pvlib) |
+| `kiozesim/src/kiozesim/plants/pv/__init__.py` | also export `PVOutput` |
+| `kiozesim/src/kiozesim/plants/pv/datasheets/example.yaml` | drop `area_m2` |
+| `kiozesim/tests/test_pv.py` | **new**: one or more tests per PV-001..016, PV-018 |
+| `kiozesim/tests/golden/pv/make_pvgis_case.py` | **new**: fetches PVGIS data and writes the PV-018 case (network, run by hand) |
+| `kiozesim/tests/golden/pv/warsaw_pvgis_annual/` | **new**: the PV-018 golden case |
+| `kiozesim/tests/harness.py`, `kiozesim/tests/test_harness.py`, `kiozesim/tests/golden/README.md` | optional `expected_energy_kwh` (total energy) check |
+| `kiozesim/tests/test_datasheets.py` | drop `area_m2` from the unknown-field YAML |
+| `kiozesim/tests/conftest.py` | `weather` fixture is unused; delete it |
 | `pyproject.toml` | mypy override `pvlib.*` → `ignore_missing_imports` (pvlib ships no type info) |
 | `specs/0001-core-plant-interface/spec.md` | changelog line for the harness extension (no requirement change; CORE-007 already says "expected values") |
 
@@ -73,10 +73,10 @@ behaviour each setting serves.
 | 4 | PV-014 | where `ghi == 0`: `ac = dc = poa = 0`; where `ghi == 0` or the sun is down: remaining NaNs → 0, cell temperature NaN → air temperature; any other NaN → raise |
 | 5 | PV-006, PV-015 | `results.ac`, `results.dc` (after losses), `results.total_irrad["poa_global"]`, `results.cell_temperature` relabelled from `mid` back to the input index; W → kW in `plant.py` |
 
-Lazy import (PV-016): `_simulate` does `from kioze_sim.plants.pv import _engine` inside a
+Lazy import (PV-016): `_simulate` does `from kiozesim.plants.pv import _engine` inside a
 `try`. An `ImportError` whose `name` starts with `pvlib` is re-raised as
-`ImportError("PV simulation needs pvlib: pip install 'kioze-sim[pv]'")`. Nothing in
-`kioze_sim/__init__.py` or `plants/pv/__init__.py` imports `_engine`.
+`ImportError("PV simulation needs pvlib: pip install 'kiozesim[pv]'")`. Nothing in
+`kiozesim/__init__.py` or `plants/pv/__init__.py` imports `_engine`.
 
 ## Time labels
 The output index is always the input index (CORE-004, PV-006). A label means "start of the
@@ -87,9 +87,9 @@ never by the plant.
 
 ## Golden data (PV-018)
 
-`tests/golden/pv/make_pvgis_case.py` runs once, by hand, with network access. It **must not
-import `kioze_sim`** (golden values come from an independent reference). It saves the raw PVGIS
-responses under `tests/golden/pv/_source/`, so the case can be rebuilt offline. It records the
+`kiozesim/tests/golden/pv/make_pvgis_case.py` runs once, by hand, with network access. It **must not
+import `kiozesim`** (golden values come from an independent reference). It saves the raw PVGIS
+responses under `kiozesim/tests/golden/pv/_source/`, so the case can be rebuilt offline. It records the
 pvlib version, the PVGIS API URL and the fetch date in `case.yaml` `source:`.
 
 - **Weather:** PVGIS TMY for Warsaw (52.23° N, 21.01° E, 100 m),
@@ -118,7 +118,7 @@ then compares `sum(power_kw) × step_hours` to that number with the case's `rtol
 also what the biogas spec needs (its acceptance check is in GWh/year). It gets its own CORE-007 test in `test_harness.py`,
 and the golden README documents it, along with the corrected example column names (`ghi_w_m2`, ...).
 
-## Tests (`tests/test_pv.py`)
+## Tests (`kiozesim/tests/test_pv.py`)
 We test our code, not pvlib's physics: pvlib tests its own models, and the physics is checked end
 to end only by PV-018 (PVGIS). Tests never re-run a pvlib step to compare. `_engine.run` is split
 so each of our parts is testable on its own: `build_modelchain` (settings), `prepare_weather`
@@ -138,13 +138,13 @@ Tests that need pvlib are skipped without it; dev and CI install all extras.
 | PV-021 | stand-in `run` with made-up W values: `simulate` outputs kW etc.; `collect` fills missing values at night and at dawn without light (0 / air temperature), leaves daylight untouched, raises on a daylight NaN |
 | PV-014 | `collect`: GHI = 0 forces AC and DC to 0 even when the engine claims power |
 | PV-015 | returns `PVOutput`; the three extra Series are on the input index |
-| PV-016 | subprocess: `import kioze_sim` leaves `pvlib` out of `sys.modules`; with pvlib hidden, `simulate` raises `ImportError` mentioning `kioze-sim[pv]` |
+| PV-016 | subprocess: `import kiozesim` leaves `pvlib` out of `sys.modules`; with pvlib hidden, `simulate` raises `ImportError` mentioning `kiozesim[pv]` |
 | PV-019 | the `ModelChain` reports the pinned model names; a GHI-only run calls Erbs |
 | PV-018 | `run_case` on `warsaw_pvgis_annual` |
 
 ## Order of work
 1. Reshape the models, the example datasheet and old tests (`area_m2`, conftest). `_simulate` still raises.
-2. Write `tests/test_pv.py`; everything except the model tests passes, and the model tests fail.
+2. Write `kiozesim/tests/test_pv.py`; everything except the model tests passes, and the model tests fail.
 3. Harness `expected_energy_kwh` plus its test and README.
 4. Write and run `make_pvgis_case.py`; commit `_source/` and the case (xfail until step 5).
 5. Implement `_engine.py` and `_simulate` until green.

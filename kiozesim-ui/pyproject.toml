@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kiozesim-ui"
+version = "0.1.0"
+description = "Web app for the kiozesim simulation library."
+requires-python = ">=3.11"
+dependencies = ["kiozesim"]
+
+[tool.uv.sources]
+kiozesim = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kiozesim_ui"]

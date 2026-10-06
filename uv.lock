@@ -16,6 +16,23 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
+[manifest]
+members = [
+    "kiozesim",
+    "kiozesim-tool",
+    "kiozesim-ui",
+]
+
+[manifest.dependency-groups]
+dev = [
+    { name = "mypy", specifier = ">=1.11" },
+    { name = "pandas-stubs" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-cov", specifier = ">=5" },
+    { name = "ruff", specifier = ">=0.6" },
+    { name = "types-pyyaml" },
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -829,9 +846,9 @@ wheels = [
 ]
 
 [[package]]
-name = "kioze-sim"
+name = "kiozesim"
 version = "0.1.0"
-source = { editable = "." }
+source = { editable = "kiozesim" }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -855,16 +872,6 @@ wind = [
     { name = "windpowerlib" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pandas-stubs" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "types-pyyaml" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "fmpy", marker = "extra == 'fmu'", specifier = ">=0.3" },
@@ -879,15 +886,27 @@ requires-dist = [
 ]
 provides-extras = ["pv", "wind", "system", "fmu"]
 
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.11" },
-    { name = "pandas-stubs" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "pytest-cov", specifier = ">=5" },
-    { name = "ruff", specifier = ">=0.6" },
-    { name = "types-pyyaml" },
+[[package]]
+name = "kiozesim-tool"
+version = "0.1.0"
+source = { editable = "kiozesim-tool" }
+dependencies = [
+    { name = "kiozesim" },
 ]
+
+[package.metadata]
+requires-dist = [{ name = "kiozesim", editable = "kiozesim" }]
+
+[[package]]
+name = "kiozesim-ui"
+version = "0.1.0"
+source = { editable = "kiozesim-ui" }
+dependencies = [
+    { name = "kiozesim" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "kiozesim", editable = "kiozesim" }]
 
 [[package]]
 name = "kiwisolver"

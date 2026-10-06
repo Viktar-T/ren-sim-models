@@ -1,4 +1,4 @@
-"""Traceability check between specs/ and tests/.
+"""Traceability check between specs/ and every package's tests/.
 
 Fails when: a requirement ID is malformed or duplicated; a spec marked `implemented` has a
 requirement without a test; a `@pytest.mark.spec("ID")` references an unknown requirement.
@@ -49,11 +49,12 @@ def main() -> int:
             errors.append(f"{rel}: approved spec still has open questions")
 
     covered: dict[str, list[str]] = {}
-    for test in sorted((ROOT / "tests").rglob("test_*.py")):
+    for test in sorted(ROOT.glob("*/tests/**/test_*.py")):  # one tests/ per package (0009)
+        name = test.relative_to(ROOT).as_posix()
         for rid in MARK_RE.findall(test.read_text()):
-            covered.setdefault(rid, []).append(test.name)
+            covered.setdefault(rid, []).append(name)
             if rid not in reqs:
-                errors.append(f"{test.name}: marker references unknown requirement {rid}")
+                errors.append(f"{name}: marker references unknown requirement {rid}")
 
     for rid, (rel, status) in sorted(reqs.items()):
         if status == "implemented" and rid not in covered:

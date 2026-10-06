@@ -5,7 +5,7 @@ Project-wide rules. A spec may not contradict these; change them here, deliberat
 1. **Physics first.** Models are parameter-driven physics or energy balances. ML is an optional
    correction layer added later, never the foundation (it cannot extrapolate to new designs).
 2. **One plug shape.** Every technology implements `Plant.simulate(ts=None) -> PlantOutput`. `ts` is that plant's own `TimeSeries` struct (series sharing one index) or absent; no technology-specific argument is part of the shared contract.
-3. **One time grid.** UTC tz-aware index, regular spacing, period-start labels (`kioze_sim/timegrid.py`).
+3. **One time grid.** UTC tz-aware index, regular spacing, period-start labels (`kiozesim/timegrid.py`).
    Plants never resample; mixed steps are rejected and resampled explicitly by the caller.
 4. **Pure and testable.** Plants are functions of (params, weather). No file I/O, plotting, or global
    state inside models.
@@ -19,9 +19,14 @@ Project-wide rules. A spec may not contradict these; change them here, deliberat
    established library) and a tolerance used in a test.
 9. **Units in names.** `power_kw`, `energy_kwh`, `temp_c`. Power is average over the period.
 10. **Vectorise by default.** Loops only where state forces them; measure before optimising.
-11. **One module per plant.** `kioze_sim/plants/<tech>/` holds that plant's pydantic params, its
+11. **One module per plant.** `kiozesim/plants/<tech>/` holds that plant's pydantic params, its
     YAML datasheet model and the `Plant` subclass. Nothing shared lives there.
-13. **Data apart from code.** Bundled datasheets live in one place, `kioze_sim/datasheets/<tech>/*.yaml`,
+13. **Data apart from code.** Bundled datasheets live in one place, `kiozesim/datasheets/<tech>/*.yaml`,
     one sub-folder per plant type. Plant packages hold code only.
-12. **Golden datasets.** Each plant is validated by golden cases in `tests/golden/<tech>/<case>/` from
-    an independent reference, run by `tests/harness.py`.
+12. **Golden datasets.** Each plant is validated by golden cases in `kiozesim/tests/golden/<tech>/<case>/`
+    from an independent reference, run by `kiozesim/tests/harness.py`.
+14. **Three packages, one repo.** The repository is a uv workspace with three sibling packages: the
+    library `kiozesim/`, the command-line tool `kiozesim-tool/` and the web app `kiozesim-ui/`
+    (spec 0009). The library never depends on the apps. Package paths such as `kiozesim/datasheets/`
+    mean inside the package (`kiozesim/src/kiozesim/datasheets/`); paths such as `kiozesim/tests/`
+    mean the folder in the repository.

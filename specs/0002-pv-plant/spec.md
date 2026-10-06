@@ -119,7 +119,7 @@ Steps longer than 1 hour are rejected because PV output is not proportional to a
 
 ## Interface
 
-`PVDatasheet` (module product data, YAML in `kioze_sim/datasheets/pv/`):
+`PVDatasheet` (module product data, YAML in `kiozesim/datasheets/pv/`):
 
 | Field | Unit | Allowed | Meaning |
 |---|---|---|---|
@@ -209,7 +209,7 @@ Model chain
 - **PV-015** `simulate` MUST return a `PVOutput` that also carries `dc_kw`, `poa_w_m2` and `temp_cell_c` as Series on the input index.
 
 Engine
-- **PV-016** pvlib MUST only be imported when a PV plant is simulated, not on `import kioze_sim`; if it is not installed, `simulate` MUST raise `ImportError` telling the user to install `kioze-sim[pv]`.
+- **PV-016** pvlib MUST only be imported when a PV plant is simulated, not on `import kiozesim`; if it is not installed, `simulate` MUST raise `ImportError` telling the user to install `kiozesim[pv]`.
 - **PV-019** The model choices listed under "Engine and references" MUST be set explicitly in the code, never taken from pvlib defaults, so a pvlib update cannot change them silently.
 
 Validation
@@ -218,7 +218,7 @@ Validation
 ## Acceptance
 - Every PV-xxx requirement has at least one test marked with its ID; `uv run pytest`,
   `uv run python scripts/spec_check.py`, `ruff` and `mypy` are green.
-- `tests/golden/pv/` holds the PV-018 case (PVGIS TMY input, the PVGIS annual figure, the request
+- `kiozesim/tests/golden/pv/` holds the PV-018 case (PVGIS TMY input, the PVGIS annual figure, the request
   parameters and the script that fetched them).
 - PV-018's ±5 % allows for PVGIS using its own module model (with low-light and spectral effects)
   and long-term average weather, so a few % difference is expected.
@@ -247,3 +247,4 @@ Validation
   by PV-020 (parameters and weather reach pvlib as mapped) and PV-021 (results come back as mapped);
   PV-006/007/014 reworded to our part. The physics is checked only end to end, by PV-018
 - 2026-10-06 datasheet location updated to `kioze_sim/datasheets/pv/` (constitution 13)
+- 2026-10-06 package renamed `kioze_sim` → `kiozesim`; PV-016 install hint is `kiozesim[pv]` (0009)

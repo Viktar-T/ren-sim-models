@@ -1,4 +1,4 @@
-# kioze-sim
+# kiozesim
 
 Simulate power generating installations from parameters and weather.
 
@@ -15,20 +15,28 @@ out.power_kw                                            # pd.Series (or float if
 Development is spec-driven; see [specs/README.md](specs/README.md).
 
 ```bash
-uv sync
+uv sync --all-packages --all-extras
 uv run pytest && uv run python scripts/spec_check.py
 ```
 
 ## Layout
 
+One repository, three packages (a uv workspace, spec 0009):
+
 ```
-src/kioze_sim/
-  datasheet.py  timegrid.py  portfolio.py
-  datasheets/<tech>/*.yaml        producer data, one folder per plant type (Datasheet.bundled)
-  plants/
-    base.py                       Plant interface
-    pv/ hawt/ vawt/ biogas/ boiler/
-      plant.py                    Params + Datasheet + Inputs (pydantic v2) + Plant
-specs/                            specs + constitution
-tests/golden/<plant>/<case>/      golden datasets; tests/harness.py runs them
+pyproject.toml                    workspace: lists the packages + shared dev tools
+kiozesim/                         the library
+  src/kiozesim/
+    datasheet.py  timegrid.py  portfolio.py
+    datasheets/<tech>/*.yaml      producer data, one folder per plant type (Datasheet.bundled)
+    plants/
+      base.py                     Plant interface
+      pv/ hawt/ vawt/ biogas/ boiler/
+        plant.py                  Params + Datasheet + Inputs (pydantic v2) + Plant
+  tests/golden/<plant>/<case>/    golden datasets; tests/harness.py runs them
+  examples/                       runnable scripts, e.g. uv run python kiozesim/examples/pv.py
+kiozesim-tool/src/kiozesim_tool/  command-line tool (skeleton)
+kiozesim-ui/src/kiozesim_ui/      web app (skeleton)
+specs/                            specs + constitution, for all packages
+scripts/                          spec_check.py
 ```

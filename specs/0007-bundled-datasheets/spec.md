@@ -28,12 +28,12 @@ Layout (constitution 13): one central folder with one sub-folder ("shelf") per p
 code live apart; each shelf holds only one kind of datasheet, so names never clash across types.
 
 ```
-kioze_sim/datasheets/
+kiozesim/datasheets/
   pv/       jinko_solar_jkm440n_54hl4r_b.yaml, ...
 ```
 
 All file logic (finding the folder, listing, loading) lives once in the base `Datasheet` class in
-`kioze_sim/datasheet.py`. A subclass only names its sub-folder, e.g. `PVDatasheet` sets `shelf = "pv"`,
+`kiozesim/datasheet.py`. A subclass only names its sub-folder, e.g. `PVDatasheet` sets `shelf = "pv"`,
 and inherits `available()` and `bundled(name)` as class methods.
 
 A datasheet's name is its file name without `.yaml`, built from the manufacturer and model:
@@ -52,20 +52,20 @@ Bundled PV modules (chosen to cover three cell technologies; values read from th
 | REC Solar | REC430AA Pure-R | heterojunction | 430 | −0.0024 | REC Alpha Pure-R, IEC AU CEC 10.2025 V4.2 |
 
 ## Requirements
-- **DS-001** Bundled datasheets MUST live under `kioze_sim/datasheets/<tech>/`, one sub-folder per plant type; no YAML datasheet may remain inside `kioze_sim/plants/`.
+- **DS-001** Bundled datasheets MUST live under `kiozesim/datasheets/<tech>/`, one sub-folder per plant type; no YAML datasheet may remain inside `kiozesim/plants/`.
 - **DS-002** Every `Datasheet` subclass MUST list the names of the datasheets on its shelf via the class method `available()`, sorted; a shelf with no files MUST give an empty list.
 - **DS-003** Every `Datasheet` subclass MUST load a datasheet from its shelf by name via the class method `bundled(name)`, returning a validated instance.
 - **DS-004** Loading an unknown name MUST raise `FileNotFoundError` whose message lists the available names.
 - **DS-005** Lookup MUST work from an installed wheel, not only from a source checkout.
 - **DS-006** The path-based `from_yaml` MUST remain available and unchanged.
-- **DS-007** The file logic MUST live only in `kioze_sim/datasheet.py`; a subclass MUST declare nothing but its sub-folder name (a class attribute `shelf`) to get bundled lookup.
+- **DS-007** The file logic MUST live only in `kiozesim/datasheet.py`; a subclass MUST declare nothing but its sub-folder name (a class attribute `shelf`) to get bundled lookup.
 - **DS-008** Every bundled datasheet MUST be a real product: its `source` MUST name the manufacturer document and give its URL; placeholder data MUST NOT be shipped.
 - **DS-009** A bundled datasheet's name MUST follow the naming rule in Domain notes.
 - **DS-010** The PV shelf MUST ship the three modules in the table above, with exactly those values.
 
 ## Acceptance
 For each plant, a test lists the bundled names, loads each one by name, and checks the result equals
-loading the same file via `from_yaml`. A test checks no YAML is left under `kioze_sim/plants/`. A test
+loading the same file via `from_yaml`. A test checks no YAML is left under `kiozesim/plants/`. A test
 builds the wheel and loads a datasheet from it. The example (EX-004) and golden harness load bundled
 datasheets by name.
 
@@ -85,3 +85,4 @@ datasheets by name.
   class methods `available()` / `bundled(name)`
 - 2026-10-06 open questions resolved: real sourced PV modules only (DS-008..010), naming rule; approved
 - 2026-10-06 implemented
+- 2026-10-06 package renamed `kioze_sim` → `kiozesim` (0009)
