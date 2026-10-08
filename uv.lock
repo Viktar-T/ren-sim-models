@@ -977,11 +977,19 @@ name = "kiozesim-tool"
 version = "0.1.0"
 source = { editable = "kiozesim-tool" }
 dependencies = [
-    { name = "kiozesim" },
+    { name = "kiozesim", extra = ["pv"] },
+    { name = "pandas" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "kiozesim", editable = "kiozesim" }]
+requires-dist = [
+    { name = "kiozesim", extras = ["pv"], editable = "kiozesim" },
+    { name = "pandas", specifier = ">=2.2" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "pyyaml", specifier = ">=6" },
+]
 
 [[package]]
 name = "kiozesim-ui"

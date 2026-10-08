@@ -1,0 +1,19 @@
+# Try it: uv run kiozesim-tool sink 15min --config kiozesim-tool/examples/sink.yaml
+speed: 3600          # 1 = real time; 3600 = one simulated hour per real second; 0 = no waiting
+start: 2026-06-01T00:00   # optional time range (UTC if no zone); default: from now, for ever
+end: 2026-06-28T00:00     # playback stops before this; required when speed is 0
+plants:
+  - type: pv
+    name: roof
+    datasheet: jinko_solar_jkm440n_54hl4r_b
+    latitude_deg: 52.23
+    longitude_deg: 21.01
+    tilt_deg: 35
+    azimuth_deg: 180
+    n_modules: 10
+    inverter_ac_kw: 4.0
+weather:
+  type: file
+  path: day_weather.csv   # relative to this file
+sinks:
+  - type: stdout

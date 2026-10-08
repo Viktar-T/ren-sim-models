@@ -21,3 +21,4 @@ uv workspace with three packages: library `kiozesim/` (import `kiozesim`), CLI `
 - `uv run python scripts/spec_check.py` spec/test traceability
 - `uv run ruff check . && uv run mypy` lint and types
 - `uv run kiozesim-ui` web UI at http://127.0.0.1:8000 (spec 0010)
+- `uv run kiozesim-tool sink 15min --config kiozesim-tool/examples/sink.yaml` stream readings (spec 0011)
