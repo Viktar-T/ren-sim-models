@@ -12,6 +12,10 @@ plants:
     azimuth_deg: 180
     n_modules: 10
     inverter_ac_kw: 4.0
+  - type: hawt
+    name: turbine
+    datasheet: E-82/2300    # a turbine from windpowerlib's library, by its type code
+    hub_height_m: 108
 weather:
   type: file
   path: day_weather.csv   # relative to this file

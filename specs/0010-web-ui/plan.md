@@ -33,3 +33,17 @@ matter: prefix to registry key (`PV`→`pv`, `WIND`→`hawt`, `VAWT`→`vawt`, `
 
 ## Touched elsewhere
 - Root dev group gains `httpx`.
+
+## HAWT support (2026-10-08, UI-007, UI-011, UI-018)
+- `form.OFFERED` gains `hawt`. Its box needs no new template: fields come from `HAWTParams`.
+- Yes/no fields (`bool` in the params model) get `Field.kind = "checkbox"`, value `"true"`/`"false"`.
+  The template draws `<input type="checkbox" value="true">`, ticked when the value is `"true"`.
+  `read_boxes` reads a missing checkbox in a posted (not redrawn) box as `"false"`, because
+  browsers send nothing for an unticked box.
+- Errors with no field (`loc == ()`, from a params model validator such as HAWT's height check) are
+  stored under the key `""` and drawn at the top of the box (`<p class="error" data-for="p{i}">`).
+- `sample_weather.csv` is now its own file: same sun and temperature as before, wind replaced by a
+  made-up breezy day (about 4–9.5 m/s at 10 m, stronger in the afternoon) and a `pressure_hpa`
+  column (a slow fall from 1012 to 1006 hPa, as before an approaching front). The UI-011 test
+  checks the columns and the wind range instead of equality with `pv_weather.csv`.
+- `pyproject.toml`: `kiozesim[pv,wind]`.

@@ -126,6 +126,15 @@ WeatherSource ─► Portfolio.simulate ─► DataFrame ─► Player (clock, s
   including `end`, then the command exits with code 0. Without `end:` playback runs until Ctrl+C.
   `start` and `end` MUST lie on the `<step>` grid and `end` MUST be later than `start`.
 - **SINK-025** `speed: 0` without `end:` MUST be rejected (it would flood the sinks without end).
+- **SINK-026** Every plant type whose spec is `implemented` MUST be usable in `plants:`; the tool MUST
+  install the engines those types need (`kiozesim[pv,wind]`).
+
+### Examples
+- **SINK-045** `kiozesim-tool/examples/day_weather.csv` MUST hold every column any implemented plant
+  type requires (today `ghi_w_m2`, `temp_air_c`, `wind_speed_m_s` at 10 m, `pressure_hpa`), the
+  same made-up breezy day as the web UI's sample weather (UI-011).
+- **SINK-046** `kiozesim-tool/examples/sink.yaml` MUST contain one plant of each implemented type
+  (today a PV roof and a wind turbine) and MUST run without error at `speed: 0` over its time range.
 
 ### stdout sink
 - **SINK-030** The `stdout` sink MUST print one JSON object per sample per line:
@@ -147,3 +156,7 @@ None.
 - 2026-10-07 implemented
 - 2026-10-07 optional `start`/`end` time range (SINK-024), `speed: 0` needs `end` (SINK-025)
 - 2026-10-07 `total` no longer sent (SINK-001, SINK-010, SINK-030): receivers add plants up
+- 2026-10-08 HAWT support: SINK-026 (all implemented types, `kiozesim[pv,wind]`), SINK-045
+  (example weather columns, breezy day), SINK-046 (`sink.yaml` with a turbine); back to draft
+- 2026-10-08 approved
+- 2026-10-08 HAWT support implemented

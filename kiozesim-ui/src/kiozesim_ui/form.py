@@ -18,7 +18,7 @@ from kiozesim.datasheet import Datasheet
 from kiozesim.plants import REGISTRY
 
 # Plant types whose spec is implemented (UI-005).
-OFFERED: tuple[str, ...] = ("pv",)
+OFFERED: tuple[str, ...] = ("pv", "hawt")
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class Field:
     """One input on the page, described from a params model field (UI-006, UI-007, UI-008)."""
 
     name: str
-    kind: Literal["number", "text", "select"]
+    kind: Literal["number", "text", "select", "checkbox"]
     default: str = ""
     min: float | None = None
     max: float | None = None
@@ -40,7 +40,7 @@ class Box:
 
     type: str
     values: dict[str, str]
-    errors: dict[str, str] = field(default_factory=dict)
+    errors: dict[str, str] = field(default_factory=dict)  # "" = the box as a whole (UI-018)
     redrawn: bool = False  # type changed in this submit: fields reset, not simulated (UI-005)
 
     @property
@@ -57,6 +57,8 @@ def _describe(name: str, info: FieldInfo) -> Field:
     default = "" if info.is_required() else str(info.default)
     if isinstance(ann, type) and issubclass(ann, Datasheet):
         return Field(name, "select", choices=tuple(ann.available()))
+    if ann is bool:  # posted as "true" when ticked, absent when not (UI-007)
+        return Field(name, "checkbox", "true" if info.default else "false")
     if get_origin(ann) is Literal:
         return Field(name, "select", default, choices=tuple(str(a) for a in get_args(ann)))
     if ann in (int, float):
@@ -100,9 +102,15 @@ def read_boxes(form: Mapping[str, str]) -> list[Box]:
             box = new_box(plant_type, {b.values["name"] for b in boxes})
             box.redrawn = True
         else:
-            box = Box(plant_type, {f.name: posted.get(f.name, "") for f in fields_of(plant_type)})
+            box = Box(plant_type, {f.name: _posted(f, posted) for f in fields_of(plant_type)})
         boxes.append(box)
     return boxes
+
+
+def _posted(f: Field, posted: Mapping[str, str]) -> str:
+    if f.kind == "checkbox":  # browsers send nothing for an unticked box
+        return "true" if posted.get(f.name) else "false"
+    return posted.get(f.name, "")
 
 
 def build_plants(boxes: list[Box]) -> list[Plant] | None:  # type: ignore[type-arg]
@@ -132,7 +140,7 @@ def build_plants(boxes: list[Box]) -> list[Plant] | None:  # type: ignore[type-a
             params = cls.params_model.model_validate(data)
         except ValidationError as e:
             for err in e.errors():
-                key = str(err["loc"][0]) if err["loc"] else "name"
+                key = str(err["loc"][0]) if err["loc"] else ""  # no field: whole box
                 box.errors.setdefault(key, err["msg"])
             continue
         if not box.errors:

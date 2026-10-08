@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import kiozesim_ui
+from kiozesim.plants.hawt import HAWTDatasheet
 from kiozesim.plants.pv import PVDatasheet, PVInputs, PVParams, PVPlant
 from kiozesim_ui import __main__ as cli
 from kiozesim_ui import form
@@ -42,6 +43,20 @@ PV_BOX = {
 }
 
 
+HAWT_BOX = {
+    "type": "hawt",
+    "shown_type": "hawt",
+    "datasheet": "E-82/2300",
+    "hub_height_m": "108",
+    "n_turbines": "1",
+    "wind_height_m": "10",
+    "roughness_length_m": "0.1",
+    "temp_height_m": "2",
+    "density_correction": "true",
+    "losses_pct": "10",
+}
+
+
 def post(action: str, *boxes: dict[str, str]) -> str:
     data = {"action": action, "n": str(len(boxes))}
     for i, box in enumerate(boxes):
@@ -53,6 +68,17 @@ def post(action: str, *boxes: dict[str, str]) -> str:
 
 def pv(name: str, **changes: str) -> dict[str, str]:
     return PV_BOX | {"name": name} | changes
+
+
+def hawt(name: str, **changes: str) -> dict[str, str]:
+    box = HAWT_BOX | {"name": name} | changes
+    return {k: v for k, v in box.items() if v is not None}
+
+
+def checked(html: str, name: str) -> bool:
+    el = tag(html, name)
+    assert 'type="checkbox"' in el, el
+    return " checked" in el
 
 
 def boxes(html: str) -> int:
@@ -169,6 +195,21 @@ def test_plus_adds_a_box_and_keeps_values() -> None:
     assert "+</button>" in page
 
 
+@pytest.mark.spec("UI-019")
+def test_remove_drops_one_box_and_keeps_the_rest() -> None:
+    assert 'value="remove:' not in client.get("/").text  # one box: nothing to remove
+    page = post("remove:1", pv("a", tilt_deg="11"), pv("b"), hawt("c", hub_height_m="99"))
+    assert boxes(page) == 2
+    assert value(page, "p0.name") == "a" and value(page, "p0.tilt_deg") == "11"
+    assert value(page, "p1.name") == "c" and value(page, "p1.hub_height_m") == "99"
+    assert 'value="remove:0"' in page and 'value="remove:1"' in page
+    last = post("remove:0", pv("a"), pv("b"))
+    assert boxes(last) == 1 and value(last, "p0.name") == "b"
+    assert 'value="remove:' not in last
+    assert boxes(post("remove:0", pv("only"))) == 1  # the last box stays
+    assert "data-energy-kwh" not in page
+
+
 @pytest.mark.spec("UI-005")
 def test_type_selector_lists_implemented_types() -> None:
     implemented = {
@@ -218,9 +259,23 @@ def test_ranges_and_choices() -> None:
     ]
 
 
+@pytest.mark.spec("UI-007")
+def test_yes_no_field_is_a_checkbox() -> None:
+    page = post("apply", {"type": "hawt", "shown_type": "pv", "name": "t"})
+    assert checked(page, "p0.density_correction")  # default true
+    # an unticked box is not posted at all; it must stay unticked on the next page
+    unticked = hawt("t")
+    del unticked["density_correction"]
+    page = post("add", unticked)
+    assert not checked(page, "p0.density_correction")
+    assert checked(post("add", hawt("t")), "p0.density_correction")
+
+
 @pytest.mark.spec("UI-008")
 def test_datasheet_dropdown() -> None:
     assert options(client.get("/").text, "p0.datasheet") == PVDatasheet.available()
+    page = post("apply", {"type": "hawt", "shown_type": "pv", "name": "t"})
+    assert options(page, "p0.datasheet") == HAWTDatasheet.available()
 
 
 @pytest.mark.spec("UI-009")
@@ -242,9 +297,22 @@ def test_one_run_button_runs_all_plants(run_two: str) -> None:
 
 
 @pytest.mark.spec("UI-011")
-def test_sample_weather_is_the_example_copy() -> None:
-    example = ROOT / "kiozesim" / "examples" / "pv_weather.csv"
-    assert (PKG / "sample_weather.csv").read_bytes() == example.read_bytes()
+def test_sample_weather_has_every_column_and_a_breeze() -> None:
+    w = pd.read_csv(PKG / "sample_weather.csv", index_col="time", parse_dates=True)
+    assert {"ghi_w_m2", "temp_air_c", "wind_speed_m_s", "pressure_hpa"} <= set(w.columns)
+    assert len(w) == 24 and (w.index[1] - w.index[0]) == pd.Timedelta("1h")
+    assert w["wind_speed_m_s"].min() >= 3.5 and w["wind_speed_m_s"].max() <= 10.5
+    assert w["wind_speed_m_s"].mean() >= 5
+
+
+@pytest.mark.spec("UI-010")
+@pytest.mark.spec("UI-011")
+def test_pv_and_turbine_run_together() -> None:
+    page = post("run", pv("roof"), hawt("turbine", n_turbines="2"))
+    assert energy(page, "turbine") > 1000  # an E-82 on a breezy day, 2 of them
+    assert energy(page, "total") == pytest.approx(
+        energy(page, "roof") + energy(page, "turbine"), abs=0.01
+    )
 
 
 @pytest.mark.spec("UI-012")
@@ -262,6 +330,17 @@ def test_bad_value_shown_next_to_field() -> None:
     assert not error(page, "p0.azimuth_deg")
     assert value(page, "p0.tilt_deg") == "100"
     assert value(page, "p1.azimuth_deg") == "180"
+    assert "data-energy-kwh" not in page
+
+
+@pytest.mark.spec("UI-018")
+def test_box_level_error_at_top_of_box() -> None:
+    page = post("run", pv("roof"), hawt("t", roughness_length_m="20"))
+    m = re.search(r'<p class="error" data-for="p1">([^<]*)</p>', page)
+    assert m and "roughness_length_m" in m.group(1)
+    assert not error(page, "p1.name")
+    assert '<p class="error" data-for="p0">' not in page
+    assert value(page, "p1.roughness_length_m") == "20"
     assert "data-energy-kwh" not in page
 
 

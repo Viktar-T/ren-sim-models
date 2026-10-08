@@ -33,3 +33,13 @@ patched chunk limit for the CLI.
 ## Risks
 - The command runs forever by design; the CLI loop takes an internal `max_chunks` used only by tests.
 - PV refuses steps > 1 h (PV-spec); that surfaces as a normal config error before sending.
+
+## HAWT support (2026-10-08, SINK-026, SINK-045, SINK-046)
+- No code change in the command: `config.build_plants` already takes any registered type and
+  loads a datasheet given by name through `bundled()`, which now includes the turbine library.
+- `pyproject.toml`: `kiozesim[pv,wind]`.
+- `examples/day_weather.csv`: the web UI's sample day without dates (same values, `HH:MM`).
+- `examples/sink.yaml`: adds a turbine (`E-82/2300`, hub 108 m) next to the PV roof.
+- Tests: a config with one plant of each implemented type runs (SINK-026); the example weather has
+  the columns and matches the UI sample (SINK-045); `sink.yaml` runs at speed 0 over its range
+  (SINK-046). Implemented types are read from spec front matter, as in the UI tests.

@@ -1,0 +1,16 @@
+params:
+  name: kelmarsh_1
+  hub_height_m: 78.5
+  wind_height_m: 78.5
+  temp_height_m: 78.5
+  density_correction: true
+  losses_pct: 0.0
+datasheet: MM92/2050
+expected_energy_kwh: 6214611.0
+rtol: 0.1
+atol: 0.0
+source: Kelmarsh wind farm data (C. Plumley, Zenodo 2022, doi:10.5281/zenodo.5841834, CC-BY 4.0), Kelmarsh
+  1 (Senvion MM92), 2020, fetched 2026-10-08. Kept 50929 of 52704 10-min periods (wind, power, temperature
+  present; no downtime or curtailment loss; full available capacity). Measured energy = sum of Power over
+  kept periods; excluded periods have wind 0 in inputs.csv. Constant pressure 995.9 hPa (standard atmosphere
+  at 145.598 m). Built by make_kelmarsh_case.py from _source/.

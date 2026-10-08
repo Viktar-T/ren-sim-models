@@ -18,7 +18,9 @@
     </select>
     <input type="hidden" name="p{{ i }}.shown_type" value="{{ box.type }}">
     <button type="submit" name="action" value="apply">Apply</button>
+    {% if boxes|length > 1 %}<button type="submit" name="action" value="remove:{{ i }}">Remove</button>{% endif %}
   </div>
+  {% if box.errors.get("") %}<p class="error" data-for="p{{ i }}">{{ box.errors[""] }}</p>{% endif %}
   <table>
   {% for f in box.fields %}{% set id = "p" ~ i ~ "." ~ f.name %}{% set v = box.values.get(f.name, "") %}
     <tr>
@@ -28,6 +30,8 @@
         <select id="{{ id }}" name="{{ id }}">
           {% for c in f.choices %}<option value="{{ c }}"{% if c == v %} selected{% endif %}>{{ c }}</option>{% endfor %}
         </select>
+      {% elif f.kind == "checkbox" %}
+        <input id="{{ id }}" name="{{ id }}" type="checkbox" value="true"{% if v == "true" %} checked{% endif %}>
       {% elif f.kind == "number" %}
         <input id="{{ id }}" name="{{ id }}" type="number" step="{{ f.step }}"{% if f.min is not none %} min="{{ f.min }}"{% endif %}{% if f.max is not none %} max="{{ f.max }}"{% endif %} value="{{ v }}">
       {% else %}

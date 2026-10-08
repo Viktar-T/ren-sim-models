@@ -74,6 +74,10 @@ async def submit(request: Request):  # type: ignore[no-untyped-def]
     if action == "add":
         taken = {b.values["name"] for b in boxes}
         boxes.append(form.new_box(form.OFFERED[0], taken))
+    elif action.startswith("remove:") and len(boxes) > 1:  # UI-019: never the last box
+        index = action.removeprefix("remove:")
+        if index.isdigit() and int(index) < len(boxes):
+            del boxes[int(index)]
     elif action == "run" and boxes and not any(b.redrawn for b in boxes):
         result, error = simulate(boxes)
         return page(request, boxes, result, error)

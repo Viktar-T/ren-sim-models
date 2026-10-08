@@ -29,5 +29,5 @@ files = ["kiozesim/src", "kiozesim-tool/src", "kiozesim-ui/src"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["pvlib.*"]
+module = ["pvlib.*", "windpowerlib.*"]
 ignore_missing_imports = true

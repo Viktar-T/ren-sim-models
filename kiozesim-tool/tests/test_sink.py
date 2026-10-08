@@ -390,3 +390,63 @@ def test_speed_zero_needs_end(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     assert "speed 0 needs an end" in capsys.readouterr().err
     clock = FakeClock()
     assert run(write_config(tmp_path, end=None, speed=3600), clock=clock, max_chunks=1) == 0
+
+
+# --- plant types and examples ----------------------------------------------------------------
+
+ROOT = Path(__file__).resolve().parents[2]
+# spec prefix -> plant type key in kiozesim.plants.REGISTRY
+PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "BIO": "biogas", "BOIL": "boiler"}
+HAWT = {"type": "hawt", "name": "turbine", "datasheet": "E-82/2300", "hub_height_m": 108}
+ONE_OF_EACH = {"pv": PV, "hawt": HAWT}  # a working config entry per implemented type
+
+
+def implemented_types() -> set[str]:
+    types = set()
+    for spec in (ROOT / "specs").glob("[0-9]*/spec.md"):
+        fm = dict(
+            line.split(":", 1) for line in spec.read_text().split("---")[1].strip().splitlines()
+        )
+        prefix, status = fm["prefix"].strip(), fm["status"].split("#")[0].strip()
+        if prefix in PREFIX_TO_TYPE and status == "implemented":
+            types.add(PREFIX_TO_TYPE[prefix])
+    return types
+
+
+@pytest.mark.spec("SINK-026")
+def test_every_implemented_type_usable(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import tomllib
+
+    assert implemented_types() <= set(ONE_OF_EACH), "add a config entry for the new type"
+    plants = [ONE_OF_EACH[t] for t in sorted(implemented_types())]
+    assert run(write_config(tmp_path, plants=plants), max_chunks=1) == 0
+    lines = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
+    assert set(lines[0]["power_kw"]) == {p["name"] for p in plants}
+    assert any(x["power_kw"]["turbine"] > 0 for x in lines)
+    deps = tomllib.loads((ROOT / "kiozesim-tool" / "pyproject.toml").read_text())
+    assert "kiozesim[pv,wind]" in deps["project"]["dependencies"]
+
+
+@pytest.mark.spec("SINK-045")
+def test_example_weather_columns_match_ui_sample() -> None:
+    day = pd.read_csv(EXAMPLES / "day_weather.csv")
+    assert {"ghi_w_m2", "temp_air_c", "wind_speed_m_s", "pressure_hpa"} <= set(day.columns)
+    ui = pd.read_csv(ROOT / "kiozesim-ui" / "src" / "kiozesim_ui" / "sample_weather.csv")
+    pd.testing.assert_frame_equal(day.drop(columns="time"), ui.drop(columns="time"))
+    assert (day["time"] == pd.to_datetime(ui["time"]).dt.strftime("%H:%M")).all()
+
+
+@pytest.mark.spec("SINK-046")
+def test_example_sink_yaml_runs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import yaml
+
+    cfg = yaml.safe_load((EXAMPLES / "sink.yaml").read_text())
+    assert {p["type"] for p in cfg["plants"]} == implemented_types()
+    cfg["speed"] = 0
+    cfg["weather"]["path"] = str(EXAMPLES / cfg["weather"]["path"])
+    p = tmp_path / "sink.yaml"
+    p.write_text(yaml.safe_dump(cfg))
+    assert run(p, "15min") == 0
+    lines = capsys.readouterr().out.splitlines()
+    start, end = pd.Timestamp(cfg["start"]), pd.Timestamp(cfg["end"])
+    assert len(lines) == (end - start) / pd.Timedelta("15min")

@@ -16,8 +16,10 @@ build a path by hand. And the shipped files are made-up placeholders, not real p
 ## Scope
 In: moving the shipped datasheets to one central folder; listing and loading them by name; replacing
 placeholders with real, sourced PV module datasheets.
-Out: user-supplied datasheet catalogues; vendor/product search; unit conversion; the OEDB turbine
-library used by windpowerlib (separate loader, see 0003); real datasheets for HAWT, VAWT, biogas and
+In: an optional *catalogue* per plant type: an outside collection of datasheets listed and loaded
+through the same `available()` / `bundled(name)` (first use: windpowerlib's turbine library, 0003).
+Out: user-supplied datasheet catalogues; vendor/product search; unit conversion; the contents of
+any catalogue (each plant spec defines its own); real datasheet files for HAWT, VAWT, biogas and
 boiler (added when each plant's spec is approved and its datasheet fields are final).
 
 ## Domain notes
@@ -36,7 +38,14 @@ All file logic (finding the folder, listing, loading) lives once in the base `Da
 `kiozesim/datasheet.py`. A subclass only names its sub-folder, e.g. `PVDatasheet` sets `shelf = "pv"`,
 and inherits `available()` and `bundled(name)` as class methods.
 
-A datasheet's name is its file name without `.yaml`, built from the manufacturer and model:
+A **catalogue** is a collection of datasheets that ships outside our package, e.g. the 67 turbine
+power curves inside windpowerlib (spec 0003). A subclass may name one (class attribute `catalogue`)
+next to its `shelf`; the base class then lists and loads its entries too, so callers (UI, tool,
+golden harness) never need to know where a datasheet came from. A catalogue entry's name, source
+and values are defined by the plant spec that uses it, not by this spec's file rules. A YAML file
+with the same name as a catalogue entry wins.
+
+A datasheet file's name is its file name without `.yaml`, built from the manufacturer and model:
 lower-case, every run of characters other than letters and digits replaced by `_`
 (`Jinko Solar` + `JKM440N-54HL4R-B` → `jinko_solar_jkm440n_54hl4r_b`).
 
@@ -58,9 +67,10 @@ Bundled PV modules (chosen to cover three cell technologies; values read from th
 - **DS-004** Loading an unknown name MUST raise `FileNotFoundError` whose message lists the available names.
 - **DS-005** Lookup MUST work from an installed wheel, not only from a source checkout.
 - **DS-006** The path-based `from_yaml` MUST remain available and unchanged.
-- **DS-007** The file logic MUST live only in `kiozesim/datasheet.py`; a subclass MUST declare nothing but its sub-folder name (a class attribute `shelf`) to get bundled lookup.
-- **DS-008** Every bundled datasheet MUST be a real product: its `source` MUST name the manufacturer document and give its URL; placeholder data MUST NOT be shipped.
-- **DS-009** A bundled datasheet's name MUST follow the naming rule in Domain notes.
+- **DS-007** The file and catalogue logic MUST live only in `kiozesim/datasheet.py`; a subclass MUST declare nothing but its sub-folder name (a class attribute `shelf`) and optionally a `catalogue` to get bundled lookup.
+- **DS-008** Every bundled datasheet file MUST be a real product: its `source` MUST name the manufacturer document and give its URL; placeholder data MUST NOT be shipped.
+- **DS-009** A bundled datasheet file's name MUST follow the naming rule in Domain notes.
+- **DS-011** When a subclass declares a `catalogue`, `available()` MUST list the shelf's file names plus the catalogue's names, sorted, and `bundled(name)` MUST load the file of that name if there is one, else the catalogue entry. If the catalogue's library is not installed, `available()` MUST list only the files, and `bundled()` of any other name MUST raise `ImportError` with the catalogue's install hint.
 - **DS-010** The PV shelf MUST ship the three modules in the table above, with exactly those values.
 
 ## Acceptance
@@ -86,3 +96,5 @@ datasheets by name.
 - 2026-10-06 open questions resolved: real sourced PV modules only (DS-008..010), naming rule; approved
 - 2026-10-06 implemented
 - 2026-10-06 package renamed `kioze_sim` → `kiozesim` (0009)
+- 2026-10-08 optional `catalogue` per subclass (DS-011, first used by 0003); DS-007 allows it; DS-008/009 apply to files only; back to approved
+- 2026-10-08 DS-011 implemented (`Catalogue` in `kiozesim/datasheet.py`)

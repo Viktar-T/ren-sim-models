@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import kiozesim
-from kiozesim.datasheet import Datasheet
+from kiozesim.datasheet import Catalogue, Datasheet
 from kiozesim.plants import REGISTRY
 from kiozesim.plants.pv import PVDatasheet
 
@@ -15,10 +15,20 @@ DATASHEETS = [cls.params_model.model_fields["datasheet"].annotation for cls in R
 
 
 def _bundled():
+    """Every shipped name: files and catalogue entries."""
     return [
         pytest.param(ds, name, id=f"{ds.shelf}/{name}")  # type: ignore[union-attr]
         for ds in DATASHEETS
         for name in ds.available()  # type: ignore[union-attr]
+    ]
+
+
+def _files():
+    """Shipped YAML files only (the file rules DS-003/006/008/009 apply to these)."""
+    return [
+        pytest.param(ds, name, id=f"{ds.shelf}/{name}")  # type: ignore[union-attr]
+        for ds in DATASHEETS
+        for name in ds.file_names()  # type: ignore[union-attr]
     ]
 
 
@@ -61,7 +71,7 @@ def test_available_empty_shelf():
 
 @pytest.mark.spec("DS-003")
 @pytest.mark.spec("DS-006")
-@pytest.mark.parametrize(("ds", "name"), _bundled())
+@pytest.mark.parametrize(("ds", "name"), _files())
 def test_bundled_equals_from_yaml(ds, name):
     path = PKG / "datasheets" / ds.shelf / f"{name}.yaml"
     loaded = ds.bundled(name)
@@ -120,7 +130,7 @@ def test_base_without_shelf_refuses():
 
 
 @pytest.mark.spec("DS-008")
-@pytest.mark.parametrize(("ds", "name"), _bundled())
+@pytest.mark.parametrize(("ds", "name"), _files())
 def test_bundled_are_real_and_sourced(ds, name):
     src = ds.bundled(name).source
     assert src and "placeholder" not in src.lower()
@@ -128,7 +138,7 @@ def test_bundled_are_real_and_sourced(ds, name):
 
 
 @pytest.mark.spec("DS-009")
-@pytest.mark.parametrize(("ds", "name"), _bundled())
+@pytest.mark.parametrize(("ds", "name"), _files())
 def test_bundled_name_follows_rule(ds, name):
     d = ds.bundled(name)
     assert name == re.sub(r"[^a-z0-9]+", "_", f"{d.manufacturer} {d.model}".lower()).strip("_")
@@ -145,3 +155,67 @@ def test_pv_shelf_ships_spec_modules():
     for name, (pdc0_w, gamma) in expected.items():
         d = PVDatasheet.bundled(name)
         assert (d.pdc0_w, d.gamma_pdc_per_k) == (pdc0_w, gamma)
+
+
+class _FakeCatalogue(Catalogue):
+    install_hint = "pip install fake"
+
+    def __init__(self, entries: dict[str, dict[str, object]], installed: bool = True) -> None:
+        self.entries, self.present = entries, installed
+
+    def installed(self) -> bool:
+        return self.present
+
+    def names(self) -> list[str]:
+        return sorted(self.entries) if self.present else []
+
+    def load(self, name: str) -> dict[str, object] | None:
+        return self.entries.get(name)
+
+
+def _with_catalogue(tmp_path, installed=True):
+    shelf = tmp_path / "things"
+    shelf.mkdir()
+    (shelf / "file_b.yaml").write_text("manufacturer: file\nmodel: b\n")
+    (shelf / "Z-1.yaml").write_text("manufacturer: file\nmodel: z\n")
+
+    class Thing(Datasheet):
+        shelf = "things"
+        catalogue = _FakeCatalogue(
+            {"A-1": {"manufacturer": "cat", "model": "A-1"}, "Z-1": {"manufacturer": "cat"}},
+            installed,
+        )
+
+        @classmethod
+        def _shelf_dir(cls):  # test only: point the shelf at tmp_path
+            return shelf
+
+    return Thing
+
+
+@pytest.mark.spec("DS-011")
+def test_catalogue_listed_and_loaded(tmp_path):
+    thing = _with_catalogue(tmp_path)
+    assert thing.available() == ["A-1", "Z-1", "file_b"]
+    assert thing.bundled("A-1").manufacturer == "cat"
+    assert thing.bundled("file_b").manufacturer == "file"
+    assert thing.bundled("Z-1").manufacturer == "file"  # a file wins
+    with pytest.raises(FileNotFoundError, match="A-1"):
+        thing.bundled("nope")
+
+
+@pytest.mark.spec("DS-011")
+def test_catalogue_not_installed(tmp_path):
+    thing = _with_catalogue(tmp_path, installed=False)
+    assert thing.available() == ["Z-1", "file_b"]
+    assert thing.bundled("file_b").model == "b"
+    with pytest.raises(ImportError, match="pip install fake"):
+        thing.bundled("A-1")
+
+
+@pytest.mark.spec("DS-007")
+def test_subclasses_declare_shelf_and_catalogue_only():
+    from kiozesim.plants.hawt import HAWTDatasheet
+
+    assert isinstance(HAWTDatasheet.catalogue, Catalogue)
+    assert PVDatasheet.catalogue is None
