@@ -72,22 +72,26 @@ def run_sink(
         print(f"kiozesim-tool sink: error: {e}", file=sys.stderr)
         return 2
 
-    with ExitStack() as stack:
-        for s in sinks:
-            stack.enter_context(s)
-        player = Player(sinks, cfg.speed, clock)
-        n = 0
-        try:
-            while True:
-                player.play(chunk, step)
-                n += 1
-                start = chunk_end
-                if (max_chunks is not None and n >= max_chunks) or start == end:
-                    break
-                chunk_end = start + DAY if end is None else min(start + DAY, end)
-                chunk = simulate_chunk(plants, weather, start, chunk_end, step)
-        except KeyboardInterrupt:  # SINK-014: sinks are closed by the ExitStack
-            pass
+    try:
+        with ExitStack() as stack:
+            for s in sinks:
+                stack.enter_context(s)
+            player = Player(sinks, cfg.speed, clock)
+            n = 0
+            try:
+                while True:
+                    player.play(chunk, step)
+                    n += 1
+                    start = chunk_end
+                    if (max_chunks is not None and n >= max_chunks) or start == end:
+                        break
+                    chunk_end = start + DAY if end is None else min(start + DAY, end)
+                    chunk = simulate_chunk(plants, weather, start, chunk_end, step)
+            except KeyboardInterrupt:  # SINK-014: sinks are closed by the ExitStack
+                pass
+    except OSError as e:  # a sink could not connect or lost it for good (MQTT-011, MQTT-032)
+        print(f"kiozesim-tool sink: error: {e}", file=sys.stderr)
+        return 2
     return 0
 
 

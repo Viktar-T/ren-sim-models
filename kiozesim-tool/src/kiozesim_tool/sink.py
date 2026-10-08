@@ -29,6 +29,15 @@ class Sample:
             raise ValueError("Sample.time must be timezone-aware UTC")
         object.__setattr__(self, "power_kw", MappingProxyType(dict(self.power_kw)))
 
+    def to_json(self) -> str:
+        """The JSON object of SINK-030 (also the MQTT payload, MQTT-020), no newline."""
+        line = {
+            "time": self.time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "step_s": int(self.step.total_seconds()),
+            "power_kw": {k: float(v) for k, v in self.power_kw.items()},
+        }
+        return json.dumps(line)
+
 
 class Sink(ABC):
     """Delivers samples somewhere (SINK-002, SINK-003). Use as a context manager."""
@@ -71,12 +80,8 @@ class StdoutSink(Sink):
 
     def send(self, sample: Sample) -> None:
         stream = self._stream or sys.stdout
-        line = {
-            "time": sample.time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "step_s": int(sample.step.total_seconds()),
-            "power_kw": {k: float(v) for k, v in sample.power_kw.items()},
-        }
-        stream.write(json.dumps(line) + "\n")
+        msg = sample.to_json()
+        stream.write(msg + "\n")
         stream.flush()
 
 
