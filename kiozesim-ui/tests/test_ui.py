@@ -1,13 +1,16 @@
-"""Spec 0010: the server-side rendered web UI, tested through FastAPI's TestClient."""
+"""Specs 0010 and 0014: the server-side rendered web UI and its datasheet import, tested through
+FastAPI's TestClient."""
 
 from __future__ import annotations
 
+import base64
 import re
 import tomllib
 from pathlib import Path
 
 import pandas as pd
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 import kiozesim_ui
@@ -44,6 +47,8 @@ PV_BOX = {
 }
 
 
+Upload = tuple[str, bytes, str]  # (file name, content, media type), as httpx posts a file
+
 HAWT_BOX = {
     "type": "hawt",
     "shown_type": "hawt",
@@ -66,11 +71,11 @@ VAWT_BOX = HAWT_BOX | {
 }
 
 
-def post(action: str, *boxes: dict[str, str]) -> str:
+def post(action: str, *boxes: dict[str, str], files: dict[str, Upload] | None = None) -> str:
     data = {"action": action, "n": str(len(boxes))}
     for i, box in enumerate(boxes):
         data |= {f"p{i}.{k}": v for k, v in box.items()}
-    r = client.post("/", data=data)
+    r = client.post("/", data=data, files=files)
     assert r.status_code == 200
     return r.text
 
@@ -167,7 +172,7 @@ def test_server_renders_page_from_templates() -> None:
     first = client.get("/")
     assert first.status_code == 200
     assert first.headers["content-type"].startswith("text/html")
-    assert '<form method="post" action="/">' in first.text
+    assert '<form method="post" action="/" enctype="multipart/form-data">' in first.text
     # every button press is a form post answered with a whole new page
     assert "<html" in post("add", pv("pv-1"))
 
@@ -248,7 +253,8 @@ def test_changed_type_is_redrawn_and_not_simulated() -> None:
 def test_fields_come_from_params_model() -> None:
     page = client.get("/").text
     labels = set(re.findall(r'<label for="p0\.(\w+)">(\w+)</label>', page))
-    assert labels - {("type", "type")} == {(f, f) for f in PVParams.model_fields}
+    shown = labels - {("type", "type"), ("upload", "import")}  # the import row is spec 0014
+    assert shown == {(f, f) for f in PVParams.model_fields}
     assert value(page, "p0.altitude_m") == "0.0"
     assert value(page, "p0.losses_pct") == "14.0"
     assert value(page, "p0.inverter_efficiency") == "0.96"
@@ -414,3 +420,192 @@ def test_only_public_library_api() -> None:
     for f in PKG.rglob("*.py"):
         for mod in re.findall(r"^\s*(?:from|import) (kiozesim[\w.]*)", f.read_text(), re.M):
             assert not any(part.startswith("_") for part in mod.split(".")), (f, mod)
+
+
+# --- datasheet import (spec 0014) --------------------------------------------------------------
+
+# Same values as the bundled jinko_solar_jkm440n_54hl4r_b, under another name and with no source.
+PV_SHEET = "manufacturer: Acme\nmodel: X-440\npdc0_w: 440\ngamma_pdc_per_k: -0.0029\n"
+
+
+def upload(content: str | bytes, box: int = 0, filename: str = "sheet.yaml") -> dict[str, Upload]:
+    data = content.encode() if isinstance(content, str) else content
+    return {f"p{box}.upload": (filename, data, "application/x-yaml")}
+
+
+def imported(page: str, box: int = 0) -> dict[str, str]:
+    """What the browser posts back for a box holding an import: the hidden field, entry selected."""
+    return {"imported": value(page, f"p{box}.imported"), "datasheet": form.UPLOADED}
+
+
+def label(page: str, name: str) -> str:
+    m = re.search(r"<option [^>]*selected>([^<]*)</option>", tag(page, name))
+    return m.group(1) if m else ""
+
+
+def copy_of(sheet: type[HAWTDatasheet | VAWTDatasheet], name: str) -> str:
+    """A bundled datasheet as a user's YAML file, renamed."""
+    return yaml.safe_dump(sheet.bundled(name).model_dump(exclude_none=True) | {"model": "copy"})
+
+
+@pytest.mark.spec("IMP-001")
+def test_each_box_has_file_picker_and_import_button() -> None:
+    page = post("add", pv("a"))
+    assert '<form method="post" action="/" enctype="multipart/form-data">' in page
+    for i in (0, 1):
+        picker = tag(page, f"p{i}.upload")
+        assert 'type="file"' in picker and 'accept=".yaml,.yml"' in picker
+        assert f'<button type="submit" name="action" value="import:{i}">Import</button>' in page
+    page = post("import:0", pv("a"), files=upload(PV_SHEET))
+    assert value(page, "p0.datasheet") == form.UPLOADED
+    assert "data-energy-kwh" not in page  # importing runs nothing
+
+
+@pytest.mark.spec("IMP-002")
+def test_file_checked_with_the_selected_types_model() -> None:
+    page = post("import:0", pv("a"), files=upload(PV_SHEET))  # no `source`: fine
+    assert not error(page, "p0.upload")
+    assert label(page, "p0.datasheet") == "uploaded: Acme X-440"
+    page = post("import:0", hawt("t"), files=upload(PV_SHEET))  # a PV module is no turbine
+    assert "rated_power_kw: Field required" in error(page, "p0.upload")
+    assert form.UPLOADED not in options(page, "p0.datasheet")
+
+
+@pytest.mark.spec("IMP-003")
+def test_imported_entry_first_and_selected_in_its_box_only() -> None:
+    page = post("import:1", pv("a"), pv("b"), files=upload(PV_SHEET, box=1))
+    assert options(page, "p1.datasheet") == [form.UPLOADED, *PVDatasheet.available()]
+    assert value(page, "p1.datasheet") == form.UPLOADED
+    assert label(page, "p1.datasheet") == "uploaded: Acme X-440"
+    assert options(page, "p0.datasheet") == PVDatasheet.available()
+    assert value(page, "p0.datasheet") == PV_BOX["datasheet"]
+
+
+@pytest.mark.spec("IMP-004")
+def test_new_import_replaces_the_old_one() -> None:
+    first = post("import:0", pv("a"), files=upload(PV_SHEET))
+    again = post(
+        "import:0", pv("a", **imported(first)), files=upload(PV_SHEET.replace("X-440", "X-999"))
+    )
+    assert options(again, "p0.datasheet").count(form.UPLOADED) == 1
+    assert label(again, "p0.datasheet") == "uploaded: Acme X-999"
+    assert "X-440" not in again
+
+
+@pytest.mark.spec("IMP-005")
+def test_import_stays_with_its_box_until_reload() -> None:
+    first = post("import:1", pv("a"), pv("b"), files=upload(PV_SHEET, box=1))
+    assert base64.b64decode(value(first, "p1.imported")).decode() == PV_SHEET
+    b = pv("b", **imported(first, box=1))
+    other = upload(PV_SHEET.replace("X-440", "Y-1"), box=0)
+    for page, i in [
+        (post("add", pv("a"), b), 1),
+        (post("apply", pv("a"), b), 1),
+        (post("remove:0", pv("a"), b), 0),
+        (post("import:0", pv("a"), b, files=other), 1),
+    ]:
+        assert value(page, f"p{i}.datasheet") == form.UPLOADED
+        assert label(page, f"p{i}.datasheet") == "uploaded: Acme X-440"
+    assert label(page, "p0.datasheet") == "uploaded: Acme Y-1"  # the other box got its own
+    assert "uploaded:" not in client.get("/").text  # the server kept nothing
+
+
+@pytest.mark.spec("IMP-005")
+def test_carried_import_is_checked_again() -> None:
+    bad = PV_SHEET.replace("pdc0_w: 440", "pdc0_w: -1")  # e.g. edited in the browser
+    carried = base64.b64encode(bad.encode()).decode()
+    page = post("run", pv("a", imported=carried, datasheet=form.UPLOADED))
+    assert "pdc0_w: Input should be greater than 0" in error(page, "p0.upload")
+    assert form.UPLOADED not in options(page, "p0.datasheet")
+    assert "data-energy-kwh" not in page
+    page = post("add", pv("a", imported="not base64!", datasheet=form.UPLOADED))
+    assert error(page, "p0.upload") and 'name="p0.imported"' not in page
+
+
+@pytest.mark.spec("IMP-006")
+def test_type_change_drops_the_import() -> None:
+    first = post("import:0", pv("a"), files=upload(PV_SHEET))
+    page = post("apply", pv("a", type="hawt", **imported(first)))
+    assert form.UPLOADED not in options(page, "p0.datasheet")
+    assert 'name="p0.imported"' not in page
+    assert not error(page, "p0.upload")
+
+
+@pytest.mark.spec("IMP-007")
+def test_run_with_import_equals_bundled_values() -> None:
+    first = post("import:0", pv("mine"), pv("bundled"), files=upload(PV_SHEET))
+    page = post("run", pv("mine", **imported(first)), pv("bundled"))
+    assert energy(page, "mine") > 0
+    assert energy(page, "mine") == pytest.approx(energy(page, "bundled"), abs=0.01)
+
+
+@pytest.mark.spec("IMP-007")
+@pytest.mark.parametrize(
+    ("box", "sheet"),
+    [
+        (HAWT_BOX | {"name": "t"}, copy_of(HAWTDatasheet, "E-82/2300")),
+        (VAWT_BOX | {"name": "t"}, copy_of(VAWTDatasheet, "mariah_power_windspire")),
+    ],
+    ids=["hawt", "vawt"],
+)
+def test_run_with_imported_turbine(box: dict[str, str], sheet: str) -> None:
+    first = post("import:0", box, files=upload(sheet))
+    assert label(first, "p0.datasheet") == f"uploaded: {yaml.safe_load(sheet)['manufacturer']} copy"
+    assert energy(post("run", box | imported(first)), "t") > 0
+
+
+@pytest.mark.spec("IMP-007")
+def test_run_with_uploaded_entry_but_no_import() -> None:
+    page = post("run", pv("a", datasheet=form.UPLOADED))
+    assert "import a file first" in error(page, "p0.datasheet")
+    assert "data-energy-kwh" not in page
+
+
+@pytest.mark.spec("IMP-008")
+@pytest.mark.parametrize(
+    ("files", "message"),
+    [
+        (None, "choose a file first"),
+        (upload(b"", filename=""), "choose a file first"),  # what a browser sends for no file
+        (upload(PV_SHEET + "#" * (100 * 1024)), "larger than 100 kB"),
+        (upload(b"\xff\xfe\x00\x01"), "not a text file"),
+        (upload("manufacturer: [Acme\n"), "not a YAML file"),
+        (upload("- a list\n- of things\n"), "`name: value`"),
+        (upload(""), "`name: value`"),
+        (upload(PV_SHEET.replace("440\n", "0\n")), "pdc0_w: Input should be greater than 0"),
+    ],
+    ids=["none", "empty-name", "too-big", "binary", "bad-yaml", "list", "empty", "bad-value"],
+)
+def test_unusable_file_shows_error_and_keeps_values(
+    files: dict[str, Upload] | None, message: str
+) -> None:
+    first = post("import:0", pv("a"), files=upload(PV_SHEET))
+    page = post("import:0", pv("a", tilt_deg="12", **imported(first)), files=files)
+    assert message in error(page, "p0.upload")
+    assert value(page, "p0.tilt_deg") == "12"
+    assert label(page, "p0.datasheet") == "uploaded: Acme X-440"  # the earlier import stays
+    assert "data-energy-kwh" not in page
+
+
+@pytest.mark.spec("IMP-008")
+def test_error_without_a_field_shows_its_message_alone() -> None:
+    sheet = yaml.safe_load(copy_of(HAWTDatasheet, "E-82/2300"))
+    sheet["power_kw"] = sheet["power_kw"][:-1]
+    page = post("import:0", hawt("t"), files=upload(yaml.safe_dump(sheet)))
+    msg = error(page, "p0.upload")
+    assert "wind_speed_m_s and power_kw must have the same length" in msg
+    assert not msg.startswith(":")
+
+
+@pytest.mark.spec("IMP-009")
+def test_file_cannot_run_code_or_add_html() -> None:
+    page = post("import:0", pv("a"), files=upload("!!python/object/apply:os.getcwd []\n"))
+    assert "not a YAML file" in error(page, "p0.upload")  # the safe reader refuses the tag
+    hostile = PV_SHEET.replace("Acme", "<script>alert(1)</script>")
+    page = post("import:0", pv("a"), files=upload(hostile))
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in tag(page, "p0.datasheet")
+    page = post("add", pv("a", **imported(page)))  # carried back: still escaped
+    assert "&lt;script&gt;" in tag(page, "p0.datasheet")
+    page = post("import:0", pv("a"), files=upload("model: <script>alert(1)</script>: x\n"))
+    assert "&lt;script&gt;" in error(page, "p0.upload")
+    assert "<script" not in page

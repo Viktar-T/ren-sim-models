@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<form method="post" action="/">
+<form method="post" action="/" enctype="multipart/form-data">
 <input type="hidden" name="n" value="{{ boxes|length }}">
 {% for box in boxes %}{% set i = loop.index0 %}
 <fieldset class="plant">
@@ -17,6 +17,7 @@
       {% for t in offered %}<option value="{{ t }}"{% if t == box.type %} selected{% endif %}>{{ t }}</option>{% endfor %}
     </select>
     <input type="hidden" name="p{{ i }}.shown_type" value="{{ box.type }}">
+    {% if box.imported %}<input type="hidden" name="p{{ i }}.imported" value="{{ box.carried }}">{% endif %}
     <button type="submit" name="action" value="apply">Apply</button>
     {% if boxes|length > 1 %}<button type="submit" name="action" value="remove:{{ i }}">Remove</button>{% endif %}
   </div>
@@ -28,7 +29,7 @@
       <td>
       {% if f.kind == "select" %}
         <select id="{{ id }}" name="{{ id }}">
-          {% for c in f.choices %}<option value="{{ c }}"{% if c == v %} selected{% endif %}>{{ c }}</option>{% endfor %}
+          {% for c, text in box.options(f) %}<option value="{{ c }}"{% if c == v %} selected{% endif %}>{{ text }}</option>{% endfor %}
         </select>
       {% elif f.kind == "checkbox" %}
         <input id="{{ id }}" name="{{ id }}" type="checkbox" value="true"{% if v == "true" %} checked{% endif %}>
@@ -40,6 +41,16 @@
       </td>
       <td>{% if box.errors.get(f.name) %}<span class="error" data-for="{{ id }}">{{ box.errors[f.name] }}</span>{% endif %}</td>
     </tr>
+    {% if f.datasheet %}{% set up = "p" ~ i ~ ".upload" %}
+    <tr>
+      <td><label for="{{ up }}">import</label></td>
+      <td>
+        <input id="{{ up }}" name="{{ up }}" type="file" accept=".yaml,.yml">
+        <button type="submit" name="action" value="import:{{ i }}">Import</button>
+      </td>
+      <td>{% if box.errors.get("upload") %}<span class="error" data-for="{{ up }}">{{ box.errors["upload"] }}</span>{% endif %}</td>
+    </tr>
+    {% endif %}
   {% endfor %}
   </table>
 </fieldset>

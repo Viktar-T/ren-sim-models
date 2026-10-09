@@ -15,7 +15,7 @@ legend { padding: 0 4px; }
 table { border-collapse: collapse; }
 td, th { padding: 2px 6px 2px 0; text-align: left; }
 input, select, button { font: inherit; }
-input[type="number"], input[type="text"], select { width: 16em; }
+input[type="number"], input[type="text"], input[type="file"], select { width: 16em; }
 .type { margin-bottom: 6px; }
 .type select { width: 8em; }
 button { min-width: 75px; padding: 2px 8px; }

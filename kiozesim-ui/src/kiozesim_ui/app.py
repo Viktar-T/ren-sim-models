@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
+from starlette.datastructures import UploadFile
 
 from kiozesim import Portfolio, TimeSeries
 from kiozesim_ui import form
@@ -68,7 +69,8 @@ def first_page(request: Request):  # type: ignore[no-untyped-def]
 
 @app.post("/", response_class=HTMLResponse)
 async def submit(request: Request):  # type: ignore[no-untyped-def]
-    posted = {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+    data = await request.form()
+    posted = {k: v for k, v in data.items() if isinstance(v, str)}
     boxes = form.read_boxes(posted)
     action = posted.get("action", "")
     if action == "add":
@@ -78,6 +80,14 @@ async def submit(request: Request):  # type: ignore[no-untyped-def]
         index = action.removeprefix("remove:")
         if index.isdigit() and int(index) < len(boxes):
             del boxes[int(index)]
+    elif action.startswith("import:"):  # spec 0014: loads the file, runs nothing (IMP-001)
+        index = action.removeprefix("import:")
+        if index.isdigit() and int(index) < len(boxes):
+            upload = data.get(f"p{index}.upload")
+            content = None  # browsers post an empty file name when no file was chosen
+            if isinstance(upload, UploadFile) and upload.filename:
+                content = await upload.read(form.MAX_IMPORT_BYTES + 1)  # enough to see "too big"
+            form.import_into(boxes[int(index)], content)
     elif action == "run" and boxes and not any(b.redrawn for b in boxes):
         result, error = simulate(boxes)
         return page(request, boxes, result, error)

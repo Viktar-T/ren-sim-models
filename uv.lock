@@ -1003,6 +1003,7 @@ dependencies = [
     { name = "kiozesim", extra = ["pv", "wind"] },
     { name = "matplotlib" },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "uvicorn" },
 ]
 
@@ -1013,6 +1014,7 @@ requires-dist = [
     { name = "kiozesim", extras = ["pv", "wind"], editable = "kiozesim" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
 

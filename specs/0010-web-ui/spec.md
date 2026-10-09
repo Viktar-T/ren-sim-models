@@ -20,7 +20,7 @@ In:
   box to add another plant, one **Run** button, the result under it.
 - Plant types whose spec is `implemented` (PV, HAWT; VAWT once spec 0004 is implemented). The app
   installs the engines those types need (`kiozesim[pv,wind]`).
-- Bundled datasheets only (spec 0007).
+- Bundled datasheets (spec 0007), plus a datasheet imported from a YAML file (spec 0014).
 - One fixed sample weather file used for every run: one made-up sunny, breezy June day, hourly,
   with the columns every offered plant type needs.
 - A command that starts the server.
@@ -28,7 +28,7 @@ In:
 Out:
 - Any weather input in the UI (upload, choice of file, fetching online).
 - Typing in your own datasheet values.
-- Saving or loading anything: setups, results, downloads.
+- Saving or loading setups or results; downloads. (Importing a datasheet file is spec 0014.)
 - Field descriptions/tooltips.
 - Browser tests (behaviour in a real browser is checked by hand).
 - User accounts, deployment, any change to how the library simulates.
@@ -74,7 +74,7 @@ Out:
   `density_correction`) MUST be a checkbox, ticked when its default is true; an unticked box MUST
   mean false (a browser does not send unticked boxes, so the server reads a missing value as false).
 - **UI-008** The datasheet field MUST be a drop-down of the bundled datasheet names for that plant
-  type (`Datasheet.available()`, spec 0007).
+  type (`Datasheet.available()`, spec 0007), plus the box's imported datasheet, if any (spec 0014).
 - **UI-009** A new box's `name` field MUST be pre-filled with a name not yet used on the page
   (`pv-1`, `pv-2`, ...).
 
@@ -134,3 +134,5 @@ the templates and static files reference no outside URL. No browser tests.
 - 2026-10-08 HAWT support implemented
 - 2026-10-08 plant boxes can be removed (UI-019), except the last one
 - 2026-10-09 VAWT support (spec 0004): no requirement change, VAWT acceptance added
+- 2026-10-09 datasheet import (spec 0014): UI-008 lists the box's imported datasheet; Scope
+  updated
