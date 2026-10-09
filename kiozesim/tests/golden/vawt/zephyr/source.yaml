@@ -1,0 +1,11 @@
+# Spec 0004, VAWT-007/010/019: source of the bundled Savonius curve.
+citation: >-
+  M. Sachar, P. Doerffer, P. Flaszynski, D. Ragni, R. Merino-Martinez, R. Zamponi,
+  "zEPHYR - Noise and performance correlation of a Savonius type vertical axis wind turbine",
+  Zenodo, 2023, doi:10.5281/zenodo.8328824
+licence: CC-BY-4.0
+file: data/U6_characteristics.txt (copied unchanged as U6_characteristics.txt)
+fetched: 2026-10-09
+rotor: {n_buckets: 2, diameter_m: 0.5, height_m: 2.2, overlap_distance_m: 0.08}
+test: TU Delft Open Jet Facility, 6 m/s, open jet (no blockage correction), loads L0 (lightest) to L8
+used: L0-L7 ordered by TSR; L8 repeats L7 exactly and is left out

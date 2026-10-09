@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 import kiozesim_ui
 from kiozesim.plants.hawt import HAWTDatasheet
 from kiozesim.plants.pv import PVDatasheet, PVInputs, PVParams, PVPlant
+from kiozesim.plants.vawt import VAWTDatasheet
 from kiozesim_ui import __main__ as cli
 from kiozesim_ui import form
 from kiozesim_ui.app import app
@@ -57,6 +58,14 @@ HAWT_BOX = {
 }
 
 
+VAWT_BOX = HAWT_BOX | {
+    "type": "vawt",
+    "shown_type": "vawt",
+    "datasheet": "mariah_power_windspire",
+    "hub_height_m": "10",
+}
+
+
 def post(action: str, *boxes: dict[str, str]) -> str:
     data = {"action": action, "n": str(len(boxes))}
     for i, box in enumerate(boxes):
@@ -73,6 +82,10 @@ def pv(name: str, **changes: str) -> dict[str, str]:
 def hawt(name: str, **changes: str) -> dict[str, str]:
     box = HAWT_BOX | {"name": name} | changes
     return {k: v for k, v in box.items() if v is not None}
+
+
+def vawt(name: str, **changes: str) -> dict[str, str]:
+    return VAWT_BOX | {"name": name} | changes
 
 
 def checked(html: str, name: str) -> bool:
@@ -276,6 +289,8 @@ def test_datasheet_dropdown() -> None:
     assert options(client.get("/").text, "p0.datasheet") == PVDatasheet.available()
     page = post("apply", {"type": "hawt", "shown_type": "pv", "name": "t"})
     assert options(page, "p0.datasheet") == HAWTDatasheet.available()
+    page = post("apply", {"type": "vawt", "shown_type": "pv", "name": "v"})
+    assert options(page, "p0.datasheet") == VAWTDatasheet.available()
 
 
 @pytest.mark.spec("UI-009")
@@ -312,6 +327,16 @@ def test_pv_and_turbine_run_together() -> None:
     assert energy(page, "turbine") > 1000  # an E-82 on a breezy day, 2 of them
     assert energy(page, "total") == pytest.approx(
         energy(page, "roof") + energy(page, "turbine"), abs=0.01
+    )
+
+
+@pytest.mark.spec("UI-010")
+@pytest.mark.parametrize("datasheet", VAWTDatasheet.available())
+def test_pv_turbine_and_vawt_run_together(datasheet: str) -> None:
+    page = post("run", pv("roof"), hawt("turbine"), vawt("vawt", datasheet=datasheet))
+    assert energy(page, "vawt") > 0
+    assert energy(page, "total") == pytest.approx(
+        energy(page, "roof") + energy(page, "turbine") + energy(page, "vawt"), abs=0.01
     )
 
 

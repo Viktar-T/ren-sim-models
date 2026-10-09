@@ -18,7 +18,7 @@ from kiozesim.datasheet import Datasheet
 from kiozesim.plants import REGISTRY
 
 # Plant types whose spec is implemented (UI-005).
-OFFERED: tuple[str, ...] = ("pv", "hawt")
+OFFERED: tuple[str, ...] = ("pv", "hawt", "vawt")
 
 
 @dataclass(frozen=True)

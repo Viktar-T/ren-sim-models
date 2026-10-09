@@ -398,7 +398,8 @@ ROOT = Path(__file__).resolve().parents[2]
 # spec prefix -> plant type key in kiozesim.plants.REGISTRY
 PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "BIO": "biogas", "BOIL": "boiler"}
 HAWT = {"type": "hawt", "name": "turbine", "datasheet": "E-82/2300", "hub_height_m": 108}
-ONE_OF_EACH = {"pv": PV, "hawt": HAWT}  # a working config entry per implemented type
+VAWT = {"type": "vawt", "name": "spire", "datasheet": "mariah_power_windspire", "hub_height_m": 10}
+ONE_OF_EACH = {"pv": PV, "hawt": HAWT, "vawt": VAWT}  # a working config entry per implemented type
 
 
 def implemented_types() -> set[str]:

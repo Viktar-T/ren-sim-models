@@ -1,0 +1,18 @@
+# Spec 0004, VAWT-023: illustrative example (DS-012), sized with this library's DMST model.
+manufacturer: Example
+model: Darrieus H-rotor 3 kW
+source: Illustrative example, not a real product (kiozesim spec 0004).
+method: geometry
+rotor_type: darrieus
+rotor_diameter_m: 3.0
+rotor_height_m: 3.5
+rated_power_kw: 3.0
+cut_in_m_s: 3.0
+cut_out_m_s: 20.0
+drivetrain_efficiency_pct: 85
+control: optimal_tsr
+rated_wind_speed_m_s: 10.5
+n_blades: 3
+chord_m: 0.10
+airfoil: NACA0018
+blade_shape: straight

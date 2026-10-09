@@ -16,6 +16,10 @@ plants:
     name: turbine
     datasheet: E-82/2300    # a turbine from windpowerlib's library, by its type code
     hub_height_m: 108
+  - type: vawt
+    name: spire
+    datasheet: mariah_power_windspire   # measured power curve (NREL test report)
+    hub_height_m: 10
 weather:
   type: file
   path: day_weather.csv   # relative to this file

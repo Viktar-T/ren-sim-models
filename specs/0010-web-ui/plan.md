@@ -47,3 +47,8 @@ matter: prefix to registry key (`PV`→`pv`, `WIND`→`hawt`, `VAWT`→`vawt`, `
   column (a slow fall from 1012 to 1006 hPa, as before an approaching front). The UI-011 test
   checks the columns and the wind range instead of equality with `pv_weather.csv`.
 - `pyproject.toml`: `kiozesim[pv,wind]`.
+
+## VAWT support (2026-10-09, UI-005, UI-010)
+- `form.OFFERED` gains `vawt`; fields come from `VAWTParams`, no template change.
+- The datasheet drop-down lists the `vawt` shelf: two real products and two `example_` datasheets.
+- Test: PV + HAWT + VAWT run for each bundled VAWT datasheet gives non-zero VAWT energy.

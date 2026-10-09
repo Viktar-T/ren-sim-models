@@ -18,7 +18,7 @@ boxes, a button, the result. No animations, no themes, no frameworks.
 In:
 - One page, rendered on the server. A box of input fields per plant, a **+** button below the last
   box to add another plant, one **Run** button, the result under it.
-- Plant types whose spec is `implemented` (PV; HAWT once spec 0003 is implemented). The app
+- Plant types whose spec is `implemented` (PV, HAWT; VAWT once spec 0004 is implemented). The app
   installs the engines those types need (`kiozesim[pv,wind]`).
 - Bundled datasheets only (spec 0007).
 - One fixed sample weather file used for every run: one made-up sunny, breezy June day, hourly,
@@ -113,7 +113,9 @@ box on first load; **+** adds a box and keeps values; the type list matches impl
 fields, ranges, defaults and the datasheet drop-down are present; Run with two PV plants shows both
 energies and a total equal to their sum; a bad value shows its error next to the field; a HAWT box
 shows its fields with `density_correction` as a checkbox, and unticking it is kept on the next page, and a PV + HAWT run gives a
-non-zero HAWT energy; a contradiction between two HAWT fields shows at the top of the box. A test checks
+non-zero HAWT energy; a contradiction between two HAWT fields shows at the top of the box; a VAWT box
+offers the `vawt` shelf (real products and `example_` datasheets) and a PV + HAWT + VAWT run gives a
+non-zero VAWT energy for each bundled VAWT datasheet. A test checks
 the templates and static files reference no outside URL. No browser tests.
 
 ## Open questions
@@ -131,3 +133,4 @@ the templates and static files reference no outside URL. No browser tests.
 - 2026-10-08 yes/no fields are checkboxes, not drop-downs (UI-007); approved
 - 2026-10-08 HAWT support implemented
 - 2026-10-08 plant boxes can be removed (UI-019), except the last one
+- 2026-10-09 VAWT support (spec 0004): no requirement change, VAWT acceptance added

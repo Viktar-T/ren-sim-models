@@ -1,0 +1,20 @@
+# Spec 0004, VAWT-017/018: UNH RM2 tow tank performance curve.
+citation: >-
+  P. Bachant, M. Wosnik, B. Gunawan, V. Neary, "Experimental study of a reference model
+  vertical-axis cross-flow turbine", PLoS ONE 11(9), 2016; data: "UNH RM2 tow tank experiment:
+  reduced dataset and processing code", doi:10.6084/m9.figshare.1373899
+licence: CC-BY-4.0 (data), github.com/UNH-CORE/RM2-tow-tank
+file: Data/Processed/Perf-1.2.csv (copied unchanged); used columns mean_tsr, mean_cp
+fetched: 2026-10-09
+rotor:  # README "Turbine model specs", model scale 1:6
+  n_blades: 3
+  diameter_m: 1.075
+  height_m: 0.8067
+  chord_mid_m: 0.06667  # "blade root chord"; widest at mid-height (Sandia OWENSAero RM2 example)
+  chord_tip_m: 0.04
+  airfoil: NACA0021
+  blade_shape: straight
+  struts: NACA 0021, chord 0.06 m (not modelled)
+test: >-
+  UNH tow tank, fresh water, tow speed 1.2 m/s, blockage 10 % not corrected by the authors.
+  Air speed with the same Reynolds number: 1.2 m/s x 1.46e-5 / 1.0e-6 = 17.5 m/s.

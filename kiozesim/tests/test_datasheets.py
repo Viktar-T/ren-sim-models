@@ -129,12 +129,29 @@ def test_base_without_shelf_refuses():
         Datasheet.available()
 
 
+EXAMPLE_SOURCE = "Illustrative example, not a real product"
+SHELVES_WITH_EXAMPLES = {"vawt"}  # plant specs that allow examples (DS-012): 0004
+
+
 @pytest.mark.spec("DS-008")
 @pytest.mark.parametrize(("ds", "name"), _files())
 def test_bundled_are_real_and_sourced(ds, name):
-    src = ds.bundled(name).source
-    assert src and "placeholder" not in src.lower()
-    assert re.search(r"https?://\S+", src)
+    d = ds.bundled(name)
+    if d.manufacturer == "Example":
+        pytest.skip("illustrative example, DS-012")
+    assert d.source and "placeholder" not in d.source.lower()
+    assert re.search(r"https?://\S+", d.source)
+
+
+@pytest.mark.spec("DS-012")
+@pytest.mark.parametrize(("ds", "name"), _files())
+def test_examples_labelled_and_allowed(ds, name):
+    d = ds.bundled(name)
+    is_example = d.manufacturer == "Example"
+    assert is_example == name.startswith("example_")
+    assert is_example == (d.source or "").startswith(EXAMPLE_SOURCE)
+    if is_example:
+        assert ds.shelf in SHELVES_WITH_EXAMPLES
 
 
 @pytest.mark.spec("DS-009")

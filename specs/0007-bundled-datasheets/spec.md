@@ -2,7 +2,7 @@
 id: 0007
 title: Bundled datasheets
 prefix: DS
-status: implemented
+status: approved
 ---
 
 # 0007 Bundled datasheets
@@ -45,6 +45,11 @@ golden harness) never need to know where a datasheet came from. A catalogue entr
 and values are defined by the plant spec that uses it, not by this spec's file rules. A YAML file
 with the same name as a catalogue entry wins.
 
+**Illustrative examples.** Some plant types can be described by parameters that manufacturers rarely
+publish (e.g. a VAWT rotor's blade width and airfoil, spec 0004). So that the apps can still offer
+them, such a shelf may hold a few clearly labelled made-up examples (DS-012). Their manufacturer is
+`Example`, so they sort together and their names start with `example_`.
+
 A datasheet file's name is its file name without `.yaml`, built from the manufacturer and model:
 lower-case, every run of characters other than letters and digits replaced by `_`
 (`Jinko Solar` + `JKM440N-54HL4R-B` → `jinko_solar_jkm440n_54hl4r_b`).
@@ -68,7 +73,8 @@ Bundled PV modules (chosen to cover three cell technologies; values read from th
 - **DS-005** Lookup MUST work from an installed wheel, not only from a source checkout.
 - **DS-006** The path-based `from_yaml` MUST remain available and unchanged.
 - **DS-007** The file and catalogue logic MUST live only in `kiozesim/datasheet.py`; a subclass MUST declare nothing but its sub-folder name (a class attribute `shelf`) and optionally a `catalogue` to get bundled lookup.
-- **DS-008** Every bundled datasheet file MUST be a real product: its `source` MUST name the manufacturer document and give its URL; placeholder data MUST NOT be shipped.
+- **DS-008** Every bundled datasheet file MUST be a real product: its `source` MUST name the manufacturer document, or an independent test or certification report for that product (e.g. NREL, ICC-SWCC), and give its URL; placeholder data MUST NOT be shipped, except illustrative examples as allowed by DS-012.
+- **DS-012** A shelf MAY hold illustrative example files only where its plant spec explicitly allows them. An example's `manufacturer` MUST be `Example` (so its file name starts with `example_`), and its `source` MUST begin with `Illustrative example, not a real product`.
 - **DS-009** A bundled datasheet file's name MUST follow the naming rule in Domain notes.
 - **DS-011** When a subclass declares a `catalogue`, `available()` MUST list the shelf's file names plus the catalogue's names, sorted, and `bundled(name)` MUST load the file of that name if there is one, else the catalogue entry. If the catalogue's library is not installed, `available()` MUST list only the files, and `bundled()` of any other name MUST raise `ImportError` with the catalogue's install hint.
 - **DS-010** The PV shelf MUST ship the three modules in the table above, with exactly those values.
@@ -98,3 +104,5 @@ datasheets by name.
 - 2026-10-06 package renamed `kioze_sim` → `kiozesim` (0009)
 - 2026-10-08 optional `catalogue` per subclass (DS-011, first used by 0003); DS-007 allows it; DS-008/009 apply to files only; back to approved
 - 2026-10-08 DS-011 implemented (`Catalogue` in `kiozesim/datasheet.py`)
+- 2026-10-09 DS-012: labelled illustrative examples allowed where a plant spec says so (first: VAWT, 0004); DS-008 refers to it; back to draft
+- 2026-10-09 DS-008 also accepts independent test/certification reports (no VAWT maker publishes a power-curve table); approved

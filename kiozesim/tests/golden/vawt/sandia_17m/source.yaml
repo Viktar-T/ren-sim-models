@@ -1,0 +1,26 @@
+# Spec 0004, VAWT-017/022: Sandia 17-m Darrieus field test, NACA 0015 blades without struts.
+citation: >-
+  E. Nellums, M. H. Worstell, "Test results of the DOE/Sandia 17 meter VAWT", 1979,
+  NASA NTRS 19800008205 (source: Sandia SAND78-1737)
+licence: US government work, public domain
+url: https://ntrs.nasa.gov/api/citations/19800008205/downloads/19800008205.pdf
+figure: >-
+  Figure 6 (PDF page 10), "Rotor efficiency vs tip speed ratio, 24 in chord, NACA 0015 blade
+  without struts, 46.7 rpm", field test data (circles)
+file: measured.csv, read off the figure by make_sandia_17m.py (method in its docstring)
+fetched: 2026-10-09
+rotor:  # Table I, "present spec"
+  n_blades: 2
+  diameter_ft: 54.9
+  height_ft: 55.8
+  swept_area_ft2: 2014
+  chord_in: 24.0
+  airfoil: NACA0015
+  blade_shape: straight-circular-straight (modelled as the spec's parabola)
+  blade_length_ft: 79
+  struts: none
+  rpm: 46.7
+note: >-
+  Partly circular: SAND80-2114 chose where its NACA 0015 table switches from calculated to
+  measured data by matching this turbine at 50.6 rpm (Figure 7); Figure 6 is the 46.7 rpm test.
+  Field data at Albuquerque air density; Cp is a ratio, so density cancels.

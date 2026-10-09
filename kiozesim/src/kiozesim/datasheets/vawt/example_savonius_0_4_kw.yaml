@@ -1,0 +1,15 @@
+# Spec 0004, VAWT-023: illustrative example (DS-012), sized with the bundled zEPHYR curve.
+manufacturer: Example
+model: Savonius 0.4 kW
+source: Illustrative example, not a real product (kiozesim spec 0004).
+method: geometry
+rotor_type: savonius
+rotor_diameter_m: 1.2
+rotor_height_m: 2.4
+rated_power_kw: 0.4
+cut_in_m_s: 2.5
+cut_out_m_s: 25.0
+drivetrain_efficiency_pct: 85
+control: optimal_tsr
+rated_wind_speed_m_s: 12.0
+n_buckets: 2

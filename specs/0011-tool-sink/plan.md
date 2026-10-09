@@ -43,3 +43,7 @@ patched chunk limit for the CLI.
 - Tests: a config with one plant of each implemented type runs (SINK-026); the example weather has
   the columns and matches the UI sample (SINK-045); `sink.yaml` runs at speed 0 over its range
   (SINK-046). Implemented types are read from spec front matter, as in the UI tests.
+
+## VAWT support (2026-10-09, SINK-026, SINK-046)
+- No code change; `examples/sink.yaml` adds the Windspire (`mariah_power_windspire`, 10 m).
+- Tests: `ONE_OF_EACH` gains a VAWT entry. No extra engine (VAWT is plain NumPy).

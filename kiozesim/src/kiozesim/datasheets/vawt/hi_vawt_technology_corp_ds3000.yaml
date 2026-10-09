@@ -1,0 +1,19 @@
+# Spec 0004, VAWT-023. Certified power curve from a certification body's report (DS-008).
+manufacturer: Hi-VAWT Technology Corp.
+model: DS3000
+source: >-
+  ICC-SWCC Summary Report SWCC-18-02, "Hi-VAWT Technology Corp. DS3000", Small Wind Certification
+  Council, certified to AWEA 9.1-2009 (testing by TUV-NEL),
+  https://smallwindcertification.org/wp-content/uploads/2024/12/SWCC-18-02-Summary-Report.pdf.
+  Power curve: section 5, database A, sea-level density; values are printed in W under a "kW"
+  heading and are converted to kW here. Bins below 3.49 m/s (-22.5 to -6.2 W, standby draw) set
+  to 0. Rated power: AWEA rated power at 11 m/s. The rotor combines Darrieus and Savonius blades
+  (recorded as darrieus). Only the effective diameter 3.66 m and swept area 10.6 m2 are given;
+  the height 2.90 m is the equivalent rectangle 10.6 / 3.66.
+method: power_curve
+rotor_type: darrieus
+rotor_diameter_m: 3.66
+rotor_height_m: 2.90
+rated_power_kw: 1.4
+wind_speed_m_s: [0.57, 1.01, 1.53, 2.02, 2.50, 2.98, 3.49, 4.00, 4.50, 4.99, 5.50, 5.99, 6.50, 6.99, 7.49, 7.97, 8.49, 9.00, 9.50, 9.99, 10.50, 10.99, 11.50, 11.98, 12.51, 13.00, 13.48, 13.96, 14.50, 14.95, 15.46, 15.93]
+power_kw: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0192, 0.0518, 0.0949, 0.1494, 0.2186, 0.2958, 0.3980, 0.5002, 0.6230, 0.7517, 0.9265, 1.0934, 1.2391, 1.3605, 1.4356, 1.4329, 1.2491, 1.0911, 0.7838, 0.6997, 0.5200, 0.5161, 0.2512, 0.4440, 0.2056, 0.2602]

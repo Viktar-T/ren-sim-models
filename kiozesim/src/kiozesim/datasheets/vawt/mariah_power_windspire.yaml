@@ -1,0 +1,19 @@
+# Spec 0004, VAWT-023. Measured power curve from an independent test report (DS-008).
+manufacturer: Mariah Power
+model: Windspire
+source: >-
+  NREL/TP-500-46192, "Wind Turbine Generator System Power Performance Test Report for the Mariah
+  Windspire 1-kW Wind Turbine", National Renewable Energy Laboratory, 2009,
+  https://www.osti.gov/servlets/purl/969714 (US government work). Power curve: Table 6
+  (sea-level density 1.225 kg/m3, measured, database A); the test was not completed (no bins
+  above 13.5 m/s, Annex H data amount not met). Bins at 2.5 and 3.0 m/s (-0.01 kW, standby draw)
+  set to 0. Height and rated power: Table 1. Width 1.2 m derived from Table 6's Cp column (swept
+  area about 7.4 m2 / 6.10 m height); the report's "rotor diameter 3.05 m" is an equivalent
+  diameter.
+method: power_curve
+rotor_type: darrieus
+rotor_diameter_m: 1.2
+rotor_height_m: 6.10
+rated_power_kw: 1.0
+wind_speed_m_s: [2.50, 2.99, 3.48, 3.98, 4.50, 4.99, 5.49, 6.00, 6.50, 7.01, 7.49, 7.98, 8.50, 8.99, 9.49, 9.98, 10.48, 10.99, 11.48, 11.99, 12.49, 13.02, 13.47]
+power_kw: [0.0, 0.0, 0.00, 0.01, 0.03, 0.05, 0.09, 0.13, 0.18, 0.25, 0.32, 0.41, 0.52, 0.64, 0.76, 0.88, 0.96, 1.02, 1.06, 1.09, 0.99, 0.96, 0.99]

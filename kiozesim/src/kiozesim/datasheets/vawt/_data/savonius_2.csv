@@ -1,0 +1,12 @@
+# Savonius rotor, 2 scoops: measured power coefficient vs tip speed ratio (spec 0004, VAWT-007).
+# Source: zEPHYR dataset, Sachar et al., Zenodo 2023, doi:10.5281/zenodo.8328824, CC-BY 4.0,
+# data/U6_characteristics.txt, loads L0-L7 (L8 repeats L7). Rotor 0.5 m x 2.2 m, overlap 80 mm, 6 m/s.
+tsr,cp
+0.359612628,0.107828812
+0.428065536,0.122088074
+0.485092983,0.132608061
+0.573773732,0.142989377
+0.678338093,0.149059011
+0.739732156,0.158123569
+1.094981218,0.123424525
+1.169833227,0.095050695
