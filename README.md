@@ -2,8 +2,8 @@
 
 Simulate power generating installations from parameters and weather.
 
-Planned plants: PV (pvlib), HAWT (windpowerlib), VAWT (custom DMST/Cp model), biogas (Buswell-Boyle + CHP),
-boiler with heat store (oemof.thermal, optional FMU). See `specs/` for the status of each.
+Planned plants: PV (pvlib), HAWT (windpowerlib), VAWT (custom DMST/Cp model), gas engine (CHP) fed by a
+biogas digester (Buswell-Boyle), boiler with heat store (oemof.thermal, optional FMU). See `specs/` for the status of each.
 
 ```python
 ds = PVDatasheet.from_yaml("module.yaml")      # producer datasheet
@@ -31,8 +31,9 @@ kiozesim/                         the library
     datasheets/<tech>/*.yaml      producer data, one folder per plant type (Datasheet.bundled)
     plants/
       base.py                     Plant interface
-      pv/ hawt/ vawt/ biogas/ boiler/
+      pv/ hawt/ vawt/ chp/ boiler/
         plant.py                  Params + Datasheet + Inputs (pydantic v2) + Plant
+    sources/digester/             fuel sources: make fuel for a plant, not electricity
   tests/golden/<plant>/<case>/    golden datasets; tests/harness.py runs them
   examples/                       runnable scripts, e.g. uv run python kiozesim/examples/pv.py
 kiozesim-tool/src/kiozesim_tool/  command-line tool (skeleton)

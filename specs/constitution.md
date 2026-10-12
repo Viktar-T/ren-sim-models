@@ -5,6 +5,9 @@ Project-wide rules. A spec may not contradict these; change them here, deliberat
 1. **Physics first.** Models are parameter-driven physics or energy balances. ML is an optional
    correction layer added later, never the foundation (it cannot extrapolate to new designs).
 2. **One plug shape.** Every technology implements `Plant.simulate(ts=None) -> PlantOutput`. `ts` is that plant's own `TimeSeries` struct (series sharing one index) or absent; no technology-specific argument is part of the shared contract.
+   A **fuel source** (e.g. a biogas digester, spec 0005) is not a plant: it makes fuel, not
+   electricity. It obeys rules 3–5, 9 and 10 like a plant, but returns a `TimeSeries` struct of fuel
+   flows that a plant can take as its input, instead of a `PlantOutput`. It is not in a `Portfolio`.
 3. **One time grid.** UTC tz-aware index, regular spacing, period-start labels (`kiozesim/timegrid.py`).
    Plants never resample; mixed steps are rejected and resampled explicitly by the caller.
 4. **Pure and testable.** Plants are functions of (params, weather). No file I/O, plotting, or global
@@ -21,6 +24,7 @@ Project-wide rules. A spec may not contradict these; change them here, deliberat
 10. **Vectorise by default.** Loops only where state forces them; measure before optimising.
 11. **One module per plant.** `kiozesim/plants/<tech>/` holds that plant's pydantic params, its
     YAML datasheet model and the `Plant` subclass. Nothing shared lives there.
+    Fuel sources live the same way in `kiozesim/sources/<tech>/`.
 13. **Data apart from code.** Bundled datasheets live in one place, `kiozesim/datasheets/<tech>/*.yaml`,
     one sub-folder per plant type. Plant packages hold code only.
 12. **Golden datasets.** Each plant is validated by golden cases in `kiozesim/tests/golden/<tech>/<case>/`

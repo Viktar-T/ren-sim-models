@@ -1,0 +1,9 @@
+params:
+  name: chp_500kw
+  availability: 0.9
+datasheet: engine.yaml
+expected_energy_kwh: 3942000.0
+rtol: 0.001
+atol: 0.0
+source: Spec 0015 CHP-010, worked by hand. 500 kW unit at electrical efficiency 0.40 burns at most
+  1250 kW fuel; fed 2000 kW for 8760 h at availability 0.9 it makes 500 x 0.9 x 8760 = 3 942 000 kWh.

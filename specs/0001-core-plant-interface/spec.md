@@ -27,7 +27,7 @@ Out: any concrete technology; weather fetching; resampling helpers; dispatch/opt
 `kiozesim/tests/test_core.py` passes; `scripts/spec_check.py` is green.
 
 ## Open questions
-- [ ] Heat output (CHP, boiler): extend `PlantOutput` with `heat_kw` in those plants. Confirm in 0005/0006, and decide what `power_kw` means for the boiler (thermal?).
+- [ ] Heat output (CHP, boiler): extend `PlantOutput` with `heat_kw` in those plants. CHP: confirmed, `CHPOutput.heat_kw` (0015, 2026-10-12). Still to decide in 0006: what `power_kw` means for the boiler (thermal?).
 
 ## Changelog
 - 2026-10-05 created and implemented
@@ -37,3 +37,4 @@ Out: any concrete technology; weather fetching; resampling helpers; dispatch/opt
 - 2026-10-05 golden harness: optional `expected_energy_kwh` (total energy) check, needed by PV-018; covered by CORE-007
 - 2026-10-06 CORE-006: datasheets move to the central `kioze_sim/datasheets/<tech>/` (constitution 13); files move as part of 0007
 - 2026-10-06 package renamed `kioze_sim` → `kiozesim`, golden cases under `kiozesim/tests/` (0009)
+- 2026-10-12 heat output confirmed for the gas engine (`heat_kw` on `CHPOutput`, 0015); boiler still open

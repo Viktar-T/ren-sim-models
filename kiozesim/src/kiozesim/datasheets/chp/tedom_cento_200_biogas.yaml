@@ -1,0 +1,7 @@
+manufacturer: TEDOM
+model: Cento 200 (biogas)
+source: TEDOM CHP Units - Overview of manufactured types (03/2025), table Biogas - Basic Technical Data,
+  https://www.tedom.com/wp-content/uploads/2023/12/TEDOM-CHP-Units-50-Hz.pdf
+rated_electrical_kw: 200         # electrical output, full load
+electrical_efficiency: 0.391    # 200 kW / 511 kW fuel input
+thermal_efficiency: 0.479       # 245 kW heat / 511 kW fuel input

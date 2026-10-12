@@ -1,0 +1,7 @@
+manufacturer: TEDOM
+model: Flexi 530 (biogas)
+source: TEDOM CHP Units - Overview of manufactured types (03/2025), table Biogas - Basic Technical Data,
+  https://www.tedom.com/wp-content/uploads/2023/12/TEDOM-CHP-Units-50-Hz.pdf
+rated_electrical_kw: 528         # electrical output, full load
+electrical_efficiency: 0.402    # 528 kW / 1313 kW fuel input
+thermal_efficiency: 0.445       # 584 kW heat / 1313 kW fuel input

@@ -1,6 +1,6 @@
 # kioze-sim-lib
 
-Python library simulating power generating installations (PV, HAWT, VAWT, biogas, boiler + heat store)
+Python library simulating power generating installations (PV, HAWT, VAWT, gas engine/CHP fed by a biogas digester, boiler + heat store)
 from input parameters and weather. Spec-driven: read `specs/README.md` and `specs/constitution.md` first.
 
 uv workspace with three packages: library `kiozesim/` (import `kiozesim`), CLI `kiozesim-tool/`

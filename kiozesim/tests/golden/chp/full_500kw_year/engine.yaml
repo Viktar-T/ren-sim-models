@@ -1,0 +1,6 @@
+manufacturer: Example
+model: 500 kW
+source: Made-up unit for the CHP-010 check (spec 0015), not a bundled datasheet.
+rated_electrical_kw: 500
+electrical_efficiency: 0.40
+thermal_efficiency: 0.45

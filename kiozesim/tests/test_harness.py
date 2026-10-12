@@ -67,7 +67,7 @@ def test_discover_empty(tmp_path):
 
 
 @pytest.mark.spec("CORE-008")
-@pytest.mark.parametrize("name", ["pv", "hawt", "vawt", "biogas", "boiler"])
+@pytest.mark.parametrize("name", ["pv", "hawt", "vawt", "chp", "boiler"])
 def test_every_plant_has_module_with_contract(name):
     from kiozesim.plants import REGISTRY
 

@@ -1,6 +1,6 @@
 from kiozesim.plants.base import Plant, PlantParams
-from kiozesim.plants.biogas import BiogasPlant
 from kiozesim.plants.boiler import BoilerPlant
+from kiozesim.plants.chp import CHPPlant
 from kiozesim.plants.hawt import HAWTPlant
 from kiozesim.plants.pv import PVPlant
 from kiozesim.plants.vawt import VAWTPlant
@@ -10,7 +10,7 @@ REGISTRY: dict[str, type[Plant]] = {  # type: ignore[type-arg]
     "pv": PVPlant,
     "hawt": HAWTPlant,
     "vawt": VAWTPlant,
-    "biogas": BiogasPlant,
+    "chp": CHPPlant,
     "boiler": BoilerPlant,
 }
 

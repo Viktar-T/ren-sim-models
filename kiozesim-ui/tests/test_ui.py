@@ -25,7 +25,7 @@ PKG = Path(kiozesim_ui.__file__).resolve().parent
 ROOT = PKG.parents[2]
 SPECS = ROOT / "specs"
 # spec prefix -> plant type key in kiozesim.plants.REGISTRY
-PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "BIO": "biogas", "BOIL": "boiler"}
+PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "CHP": "chp", "BOIL": "boiler"}
 
 client = TestClient(app)
 
