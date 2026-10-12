@@ -2,9 +2,14 @@
 #   mosquitto_sub -t 'kioze/#' -v
 # Run: uv run kiozesim-tool sink 15min --config kiozesim-tool/examples/mqtt.yaml
 speed: 60            # one simulated hour per real minute
+sources:
+  - type: weather_file
+    name: weather
+    path: day_weather.csv   # relative to this file
 plants:
   - type: pv
     name: roof
+    from: weather
     datasheet: jinko_solar_jkm440n_54hl4r_b
     latitude_deg: 52.23
     longitude_deg: 21.01
@@ -12,9 +17,6 @@ plants:
     azimuth_deg: 180
     n_modules: 10
     inverter_ac_kw: 4.0
-weather:
-  type: file
-  path: day_weather.csv   # relative to this file
 sinks:
   - type: mqtt
     host: localhost

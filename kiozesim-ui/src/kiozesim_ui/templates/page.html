@@ -2,28 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>kiozesim</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v={{ css_version }}">
 </head>
 <body>
-<form method="post" action="/" enctype="multipart/form-data">
-<input type="hidden" name="n" value="{{ boxes|length }}">
-{% for box in boxes %}{% set i = loop.index0 %}
-<fieldset class="plant">
-  <legend>Plant {{ loop.index }}</legend>
+{% macro box_fieldset(box, i, kind, total, offered) %}{% set p = "p" if kind == "plant" else "s" %}
+<fieldset class="{{ kind }}">
+  <legend>{{ "Plant" if kind == "plant" else "Source" }} {{ i + 1 }}</legend>
   <div class="type">
-    <label for="p{{ i }}.type">type</label>
-    <select id="p{{ i }}.type" name="p{{ i }}.type">
+    <label for="{{ p }}{{ i }}.type">type</label>
+    <select id="{{ p }}{{ i }}.type" name="{{ p }}{{ i }}.type">
       {% for t in offered %}<option value="{{ t }}"{% if t == box.type %} selected{% endif %}>{{ t }}</option>{% endfor %}
     </select>
-    <input type="hidden" name="p{{ i }}.shown_type" value="{{ box.type }}">
-    {% if box.imported %}<input type="hidden" name="p{{ i }}.imported" value="{{ box.carried }}">{% endif %}
+    <input type="hidden" name="{{ p }}{{ i }}.shown_type" value="{{ box.type }}">
+    {% if box.imported %}<input type="hidden" name="{{ p }}{{ i }}.imported" value="{{ box.carried }}">{% endif %}
     <button type="submit" name="action" value="apply">Apply</button>
-    {% if boxes|length > 1 %}<button type="submit" name="action" value="remove:{{ i }}">Remove</button>{% endif %}
+    {% if total > 1 %}<button type="submit" name="action" value="{{ 'remove' if kind == 'plant' else 'remove_source' }}:{{ i }}">Remove</button>{% endif %}
   </div>
-  {% if box.errors.get("") %}<p class="error" data-for="p{{ i }}">{{ box.errors[""] }}</p>{% endif %}
+  {% if box.errors.get("") %}<p class="error" data-for="{{ p }}{{ i }}">{{ box.errors[""] }}</p>{% endif %}
   <table>
-  {% for f in box.fields %}{% set id = "p" ~ i ~ "." ~ f.name %}{% set v = box.values.get(f.name, "") %}
+  {% for f in box.fields %}{% set id = p ~ i ~ "." ~ f.name %}{% set v = box.values.get(f.name, "") %}
     <tr>
       <td><label for="{{ id }}">{{ f.name }}</label></td>
       <td>
@@ -35,13 +34,15 @@
         <input id="{{ id }}" name="{{ id }}" type="checkbox" value="true"{% if v == "true" %} checked{% endif %}>
       {% elif f.kind == "number" %}
         <input id="{{ id }}" name="{{ id }}" type="number" step="{{ f.step }}"{% if f.min is not none %} min="{{ f.min }}"{% endif %}{% if f.max is not none %} max="{{ f.max }}"{% endif %} value="{{ v }}">
+      {% elif f.kind == "yaml" %}
+        <textarea id="{{ id }}" name="{{ id }}" rows="8" placeholder="{{ f.example }}">{{ v }}</textarea>
       {% else %}
         <input id="{{ id }}" name="{{ id }}" type="text" value="{{ v }}">
       {% endif %}
       </td>
       <td>{% if box.errors.get(f.name) %}<span class="error" data-for="{{ id }}">{{ box.errors[f.name] }}</span>{% endif %}</td>
     </tr>
-    {% if f.datasheet %}{% set up = "p" ~ i ~ ".upload" %}
+    {% if f.datasheet %}{% set up = p ~ i ~ ".upload" %}
     <tr>
       <td><label for="{{ up }}">import</label></td>
       <td>
@@ -52,11 +53,38 @@
     </tr>
     {% endif %}
   {% endfor %}
+    {% set others = source_names|reject("equalto", box.name)|list %}{% if others or kind == "plant" %}
+    <tr class="from">
+      <td>from</td>
+      <td>
+      {% for name in others %}{% set wid = p ~ i ~ ".from." ~ loop.index0 %}
+        <label><input id="{{ wid }}" name="{{ wid }}" type="checkbox" value="{{ name }}"{% if name in box.wired %} checked{% endif %}> {{ name }}</label>
+      {% endfor %}
+      </td>
+      <td></td>
+    </tr>
+    {% endif %}
   </table>
 </fieldset>
-{% endfor %}
+{% endmacro %}
+<form method="post" action="/" enctype="multipart/form-data">
+<input type="hidden" name="n" value="{{ plants|length }}">
+<input type="hidden" name="ns" value="{{ sources|length }}">
+<div class="columns">
+  <div class="plants">
+  {% for box in plants %}{{ box_fieldset(box, loop.index0, "plant", plants|length, offered) }}{% endfor %}
+    <div class="buttons">
+      <button type="submit" name="action" value="add" title="Add a plant">+</button>
+    </div>
+  </div>
+  <div class="sources">
+  {% for box in sources %}{{ box_fieldset(box, loop.index0, "source", sources|length, sources_offered) }}{% endfor %}
+    <div class="buttons">
+      <button type="submit" name="action" value="add_source" title="Add a source">+</button>
+    </div>
+  </div>
+</div>
 <div class="buttons">
-  <button type="submit" name="action" value="add" title="Add a plant">+</button>
   <button type="submit" name="action" value="run" class="run">Run</button>
 </div>
 </form>

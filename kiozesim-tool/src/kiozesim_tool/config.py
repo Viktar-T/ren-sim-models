@@ -1,37 +1,41 @@
-"""The `--config` YAML file: plants, weather source, sinks and speed (spec 0011, SINK-021/022)."""
+"""The `--config` YAML file: sources, plants, sinks and speed (specs 0011 SINK-021/022, 0016)."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import pandas as pd
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from kiozesim import Plant
+from kiozesim import Plant, Source
 from kiozesim.datasheet import Datasheet
 from kiozesim.plants import REGISTRY
 from kiozesim_tool.sink import SINKS, Sink
-from kiozesim_tool.weather import FileWeatherSource, WeatherSource
-
-
-class FileWeather(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    type: Literal["file"]
-    path: Path
+from kiozesim_utils.sources import build_source
+from kiozesim_utils.wiring import Wires
 
 
 class Config(BaseModel):
     speed: float = Field(default=1.0, ge=0)
+    sources: list[dict[str, Any]] = Field(min_length=1)  # SRC-030
     plants: list[dict[str, Any]] = Field(min_length=1)
-    weather: FileWeather
     sinks: list[dict[str, Any]] = Field(min_length=1)
     start: pd.Timestamp | None = None  # SINK-024; no time zone means UTC
     end: pd.Timestamp | None = None
 
     model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _no_weather_key(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "weather" in data:
+            raise ValueError(
+                "`weather:` is gone: list the weather under `sources:` as {type: weather_file, "
+                "name: weather, path: ...} and wire plants with `from: weather`"
+            )
+        return data
 
     @field_validator("start", "end", mode="before")
     @classmethod
@@ -62,6 +66,7 @@ def build_plants(entries: list[dict[str, Any]]) -> list[Plant]:  # type: ignore[
     plants: list[Plant] = []  # type: ignore[type-arg]
     for entry in entries:
         data = dict(entry)
+        data.pop("from", None)  # wiring, read by wires_of
         plant_type = data.pop("type", None)
         if plant_type not in REGISTRY:
             raise ValueError(f"unknown plant type {plant_type!r}; known: {sorted(REGISTRY)}")
@@ -86,6 +91,24 @@ def build_sinks(entries: list[dict[str, Any]]) -> list[Sink]:
     return sinks
 
 
-def build_weather(cfg: FileWeather, base: Path) -> WeatherSource:
-    path = cfg.path if cfg.path.is_absolute() else base / cfg.path
-    return FileWeatherSource(path)
+def build_sources(entries: list[dict[str, Any]], base: Path) -> list[Source]:  # type: ignore[type-arg]
+    """`{type, name, [from], <settings>}`; relative paths resolve to the config's folder."""
+    sources: list[Source] = []  # type: ignore[type-arg]
+    for entry in entries:
+        data = {k: v for k, v in entry.items() if k not in ("type", "from")}
+        sources.append(build_source(str(entry.get("type")), data, base))
+    return sources
+
+
+def wires_of(entries: list[dict[str, Any]]) -> Wires:
+    """Box name -> its `from` sources; `from` is one name or a list of names (SRC-030)."""
+    wires: dict[str, list[str]] = {}
+    for entry in entries:
+        froms = entry.get("from", [])
+        froms = [froms] if isinstance(froms, str) else froms
+        if not isinstance(froms, list) or not all(isinstance(f, str) for f in froms):
+            raise ValueError(
+                f"{entry.get('name')}: `from` must be a source name or a list of names"
+            )
+        wires[str(entry.get("name"))] = froms
+    return wires

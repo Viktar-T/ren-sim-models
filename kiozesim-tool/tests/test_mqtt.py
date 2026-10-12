@@ -167,7 +167,7 @@ def test_invalid_settings(bad: dict[str, Any]) -> None:
 @pytest.mark.spec("MQTT-004")
 def test_invalid_settings_fail_before_sending(tmp_path: Path, capsys: Any) -> None:
     cfg = yaml.safe_load((EXAMPLES / "mqtt.yaml").read_text())
-    cfg["weather"]["path"] = str(EXAMPLES / "day_weather.csv")
+    cfg["sources"][0]["path"] = str(EXAMPLES / "day_weather.csv")
     cfg["sinks"] = [{"type": "mqtt", "host": "h", "topic": "a/#"}, {"type": "stdout"}]
     path = tmp_path / "c.yaml"
     path.write_text(yaml.safe_dump(cfg))
@@ -212,7 +212,7 @@ def test_cli_exits_nonzero_when_broker_unreachable(
     )
     cfg = yaml.safe_load((EXAMPLES / "mqtt.yaml").read_text())
     cfg.update(speed=0, start="2026-06-01T00:00", end="2026-06-01T03:00")
-    cfg["weather"]["path"] = str(EXAMPLES / "day_weather.csv")
+    cfg["sources"][0]["path"] = str(EXAMPLES / "day_weather.csv")
     path = tmp_path / "c.yaml"
     path.write_text(yaml.safe_dump(cfg))
     assert cli.main(["sink", "1h", "--config", str(path)]) == 2

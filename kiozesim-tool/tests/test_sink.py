@@ -1,4 +1,4 @@
-"""Spec 0011: the `kiozesim-tool sink` command, sinks, player and weather source."""
+"""Spec 0011: the `kiozesim-tool sink` command, sinks and player; 0016: sources in the config."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import pytest
 from kiozesim_tool import cli
 from kiozesim_tool.player import Player
 from kiozesim_tool.sink import SINKS, Sample, Sink, StdoutSink
-from kiozesim_tool.weather import FileWeatherSource, WeatherSource
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 T0 = pd.Timestamp("2026-10-07 10:00", tz="UTC")
@@ -21,6 +20,7 @@ NOW = pd.Timestamp("2026-10-07 10:07", tz="UTC")
 PV = {
     "type": "pv",
     "name": "roof",
+    "from": "weather",
     "datasheet": "jinko_solar_jkm440n_54hl4r_b",
     "latitude_deg": 52.23,
     "longitude_deg": 21.01,
@@ -82,13 +82,30 @@ def write_day(path: Path, step: str = "1h") -> Path:
     return path
 
 
+WEATHER = {"type": "weather_file", "name": "weather", "path": str(EXAMPLES / "day_weather.csv")}
+FARM = {
+    "type": "digester",
+    "name": "farm",
+    "substrates": [
+        {
+            "name": "maize silage",
+            "fresh_t_per_day": 40,
+            "dry_matter_frac": 0.33,
+            "organic_frac": 0.95,
+            "formula": "C6H10O5",
+            "biodegradability": 0.8,
+        }
+    ],
+}
+
+
 def write_config(tmp_path: Path, **over: object) -> Path:
     import yaml
 
     cfg: dict[str, object] = {
         "speed": 0,
         "plants": [PV],
-        "weather": {"type": "file", "path": str(EXAMPLES / "day_weather.csv")},
+        "sources": [WEATHER],
         "sinks": [{"type": "stdout"}],
         "end": "2027-01-01T00:00:00Z",  # far away; tests cut playback short with max_chunks
     }
@@ -207,44 +224,7 @@ def test_ctrl_c_closes_sinks_and_exits_zero(
     assert rec.events == ["open", "close"]
 
 
-# --- weather source --------------------------------------------------------------------------
-
-
-@pytest.mark.spec("SINK-040")
-def test_weather_source_interface() -> None:
-    assert issubclass(FileWeatherSource, WeatherSource)
-    with pytest.raises(TypeError):
-        WeatherSource()  # type: ignore[abstract]
-
-
-@pytest.mark.spec("SINK-041")
-@pytest.mark.parametrize(
-    "rows",
-    [
-        "time,x\n2026-06-21T00:00:00Z,1\n2026-06-21T01:00:00Z,2\n",  # dates
-        "time,x\n00:00,1\n01:00,2\n",  # not a whole day
-        "time,x\n" + "".join(f"{h:02d}:00,1\n" for h in range(24) if h != 5),  # gap
-    ],
-)
-def test_file_source_rejects_bad_files(tmp_path: Path, rows: str) -> None:
-    p = tmp_path / "w.csv"
-    p.write_text(rows)
-    with pytest.raises(ValueError):
-        FileWeatherSource(p)
-
-
-@pytest.mark.spec("SINK-041")
-def test_file_source_accepts_example_day() -> None:
-    assert FileWeatherSource(EXAMPLES / "day_weather.csv").step == pd.Timedelta("1h")
-
-
-@pytest.mark.spec("SINK-042")
-def test_file_source_repeats_day_on_real_dates(tmp_path: Path) -> None:
-    src = FileWeatherSource(write_day(tmp_path / "w.csv"))
-    start = pd.Timestamp("2026-10-07 22:00", tz="UTC")
-    w = src.get(start, start + pd.Timedelta("4h"), pd.Timedelta("1h"))
-    assert list(w.index) == list(pd.date_range(start, periods=4, freq="1h"))
-    assert list(w["x"]) == [22, 23, 0, 1]  # past midnight the same day starts on the next date
+# --- start time ------------------------------------------------------------------------------
 
 
 @pytest.mark.spec("SINK-043")
@@ -254,18 +234,6 @@ def test_playback_starts_now_rounded_down(
     assert run(write_config(tmp_path), "15min", max_chunks=1) == 0
     first = json.loads(capsys.readouterr().out.splitlines()[0])
     assert first["time"] == "2026-10-07T10:00:00Z"
-
-
-@pytest.mark.spec("SINK-044")
-def test_resample_mean_and_interpolate(tmp_path: Path) -> None:
-    src = FileWeatherSource(write_day(tmp_path / "w.csv"))
-    day = pd.Timestamp("2026-10-07", tz="UTC")
-    coarse = src.get(day, day + pd.Timedelta("1D"), pd.Timedelta("2h"))
-    assert coarse["x"].iloc[0] == 0.5 and coarse["x"].iloc[5] == 10.5  # mean of 10:00 and 11:00
-    fine = src.get(day + pd.Timedelta("10h"), day + pd.Timedelta("11h"), pd.Timedelta("15min"))
-    assert list(fine["x"]) == [10.0, 10.25, 10.5, 10.75]
-    wrap = src.get(day + pd.Timedelta("23h"), day + pd.Timedelta("24h"), pd.Timedelta("30min"))
-    assert list(wrap["x"]) == [23.0, 11.5]  # between 23:00 and the next day's 00:00
 
 
 # --- command ---------------------------------------------------------------------------------
@@ -289,7 +257,7 @@ def test_config_file_and_relative_weather(
     write_day(tmp_path / "day.csv")
     cfg = write_config(
         tmp_path,
-        weather={"type": "file", "path": "day.csv"},
+        sources=[{"type": "weather_file", "name": "weather", "path": "day.csv"}],
         plants=[{**PV, "datasheet": "jinko_solar_jkm440n_54hl4r_b"}],
     )
     # day.csv has no PV columns -> a clear config error, proving the relative path was used
@@ -397,9 +365,13 @@ def test_speed_zero_needs_end(tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ROOT = Path(__file__).resolve().parents[2]
 # spec prefix -> plant type key in kiozesim.plants.REGISTRY
 PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "CHP": "chp", "BOIL": "boiler"}
-HAWT = {"type": "hawt", "name": "turbine", "datasheet": "E-82/2300", "hub_height_m": 108}
-VAWT = {"type": "vawt", "name": "spire", "datasheet": "mariah_power_windspire", "hub_height_m": 10}
-ONE_OF_EACH = {"pv": PV, "hawt": HAWT, "vawt": VAWT}  # a working config entry per implemented type
+HAWT = {"type": "hawt", "name": "turbine", "from": "weather", "datasheet": "E-82/2300"}
+HAWT["hub_height_m"] = 108
+VAWT = {"type": "vawt", "name": "spire", "from": "weather", "datasheet": "mariah_power_windspire"}
+VAWT["hub_height_m"] = 10
+CHP = {"type": "chp", "name": "engine", "from": "farm", "datasheet": "tedom_flexi_530_biogas"}
+# a working config entry per implemented type
+ONE_OF_EACH = {"pv": PV, "hawt": HAWT, "vawt": VAWT, "chp": CHP}
 
 
 def implemented_types() -> set[str]:
@@ -420,7 +392,8 @@ def test_every_implemented_type_usable(tmp_path: Path, capsys: pytest.CaptureFix
 
     assert implemented_types() <= set(ONE_OF_EACH), "add a config entry for the new type"
     plants = [ONE_OF_EACH[t] for t in sorted(implemented_types())]
-    assert run(write_config(tmp_path, plants=plants), max_chunks=1) == 0
+    cfg = write_config(tmp_path, plants=plants, sources=[WEATHER, FARM])
+    assert run(cfg, max_chunks=1) == 0
     lines = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
     assert set(lines[0]["power_kw"]) == {p["name"] for p in plants}
     assert any(x["power_kw"]["turbine"] > 0 for x in lines)
@@ -434,7 +407,7 @@ def test_example_weather_columns_match_ui_sample() -> None:
     assert {"ghi_w_m2", "temp_air_c", "wind_speed_m_s", "pressure_hpa"} <= set(day.columns)
     ui = pd.read_csv(ROOT / "kiozesim-ui" / "src" / "kiozesim_ui" / "sample_weather.csv")
     pd.testing.assert_frame_equal(day.drop(columns="time"), ui.drop(columns="time"))
-    assert (day["time"] == pd.to_datetime(ui["time"]).dt.strftime("%H:%M")).all()
+    assert (day["time"] == ui["time"]).all()
 
 
 @pytest.mark.spec("SINK-046")
@@ -444,10 +417,63 @@ def test_example_sink_yaml_runs(tmp_path: Path, capsys: pytest.CaptureFixture[st
     cfg = yaml.safe_load((EXAMPLES / "sink.yaml").read_text())
     assert {p["type"] for p in cfg["plants"]} == implemented_types()
     cfg["speed"] = 0
-    cfg["weather"]["path"] = str(EXAMPLES / cfg["weather"]["path"])
+    for src in cfg["sources"]:
+        if "path" in src:
+            src["path"] = str(EXAMPLES / src["path"])
     p = tmp_path / "sink.yaml"
     p.write_text(yaml.safe_dump(cfg))
     assert run(p, "15min") == 0
     lines = capsys.readouterr().out.splitlines()
     start, end = pd.Timestamp(cfg["start"]), pd.Timestamp(cfg["end"])
     assert len(lines) == (end - start) / pd.Timedelta("15min")
+
+
+# --- sources and wiring (spec 0016) ----------------------------------------------------------
+
+
+@pytest.mark.spec("SRC-030")
+def test_config_needs_sources_and_from(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    weather = {"type": "file", "path": str(EXAMPLES / "day_weather.csv")}
+    assert run(write_config(tmp_path, sources=None, weather=weather)) == 2
+    assert "sources:" in capsys.readouterr().err
+    unwired = {k: v for k, v in PV.items() if k != "from"}
+    assert run(write_config(tmp_path, plants=[unwired])) == 2
+    assert "roof: not wired to any source" in capsys.readouterr().err
+    assert run(write_config(tmp_path, sources=[{**WEATHER, "type": "nope"}])) == 2
+    assert "unknown source type" in capsys.readouterr().err
+
+
+@pytest.mark.spec("SRC-030")
+def test_from_takes_a_list(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = write_config(tmp_path, plants=[{**PV, "from": ["weather"]}])
+    assert run(cfg, max_chunks=1) == 0
+
+
+@pytest.mark.spec("SRC-020")
+@pytest.mark.spec("SRC-022")
+def test_tool_reports_wiring_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert run(write_config(tmp_path, plants=[{**PV, "from": "farm"}])) == 2
+    assert "roof: wired to 'farm', which is not a source" in capsys.readouterr().err
+    cfg = write_config(tmp_path, plants=[{**PV, "from": "farm"}], sources=[WEATHER, FARM])
+    assert run(cfg) == 2
+    err = capsys.readouterr().err
+    assert "roof: wired to farm, which give no" in err and "ghi_w_m2" in err
+
+
+@pytest.mark.spec("SRC-023")
+def test_gas_engine_on_digester(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = write_config(tmp_path, plants=[CHP], sources=[FARM])
+    assert run(cfg, max_chunks=1) == 0
+    lines = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
+    assert lines[0]["power_kw"]["engine"] == pytest.approx(528 * 0.92)
+
+
+@pytest.mark.spec("SRC-031")
+def test_example_has_digester_chain() -> None:
+    import yaml
+
+    cfg = yaml.safe_load((EXAMPLES / "sink.yaml").read_text())
+    types = {s["name"]: s["type"] for s in cfg["sources"]}
+    engines = [p for p in cfg["plants"] if p["type"] == "chp"]
+    assert engines and all(types[p["from"]] == "digester" for p in engines)
+    assert all(types[p["from"]] == "weather_file" for p in cfg["plants"] if p["type"] != "chp")

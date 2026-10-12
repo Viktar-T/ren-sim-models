@@ -56,7 +56,7 @@ Out:
   group box (`<fieldset>`) per plant, no animations, no images except the chart.
 
 ### Plants on the page
-- **UI-004** The first page MUST show one plant box. A **+** button below the last box MUST return
+- **UI-004** The first page MUST show one plant box (and one source box, SRC-044). A **+** button below the last box MUST return
   the page with one more box, keeping everything already typed in the other boxes.
 - **UI-019** Each box MUST have a **Remove** button next to its **Apply** button that returns the
   page without that box, keeping everything typed in the other boxes. When only one box is left,
@@ -80,10 +80,11 @@ Out:
 
 ### Running
 - **UI-010** There MUST be exactly one **Run** button. It MUST simulate every plant on the page in
-  one go, through `Portfolio`, with the sample weather (UI-011).
-- **UI-011** The weather MUST be `kiozesim_ui/sample_weather.csv`, shipped inside the UI package so
-  the installed app does not depend on the repository's `examples/` folder: one made-up day, hourly,
-  UTC, holding every column any offered plant type requires (today `ghi_w_m2`, `temp_air_c`,
+  one go, through `Portfolio`, each fed by the sources it is wired to (spec 0016).
+- **UI-011** The `sample weather` source (SRC-041) MUST read `kiozesim_ui/sample_weather.csv`, shipped
+  inside the UI package so the installed app does not depend on the repository's `examples/`
+  folder: one made-up day, hourly, UTC, times of day without a date (the `kiozesim_utils`
+  `FileWeatherSource` format), run on 2026-06-21, holding every column any offered plant type requires (today `ghi_w_m2`, `temp_air_c`,
   `wind_speed_m_s` at 10 m, `pressure_hpa`). The wind MUST be breezy enough (about 4–10 m/s at
   10 m) that a large wind turbine visibly produces power.
 - **UI-012** The server MUST build each plant from its pydantic params model and contain no physics
@@ -136,3 +137,5 @@ the templates and static files reference no outside URL. No browser tests.
 - 2026-10-09 VAWT support (spec 0004): no requirement change, VAWT acceptance added
 - 2026-10-09 datasheet import (spec 0014): UI-008 lists the box's imported datasheet; Scope
   updated
+- 2026-10-12 sources and wiring (0016): first page also shows a source box (UI-004); plants fed by
+  their wired sources (UI-010); sample weather is a dateless day read by `kiozesim_utils` (UI-011)

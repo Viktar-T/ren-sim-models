@@ -1,8 +1,11 @@
-"""Plant boxes on the page: fields read from each params model, posted strings turned into plants.
+"""Plant and source boxes on the page: fields read from each params model, posted strings turned
+into plants and sources.
 
-No web code here. A box is posted as `p{i}.<field>` strings plus `p{i}.type` and `p{i}.shown_type`
-(the type its fields were drawn for). Spec 0010. A box may also hold a datasheet imported from a
-YAML file, carried in the hidden `p{i}.imported` (spec 0014).
+No web code here. A plant box is posted as `p{i}.<field>` strings plus `p{i}.type` and
+`p{i}.shown_type` (the type its fields were drawn for), its count as `n`. Spec 0010. A box may also
+hold a datasheet imported from a YAML file, carried in the hidden `p{i}.imported` (spec 0014).
+Source boxes are posted the same way as `s{i}.…` with count `ns`; every box's wiring is posted as
+`<prefix>{i}.from.{j}` = source name, one per ticked source (spec 0016).
 """
 
 from __future__ import annotations
@@ -10,18 +13,35 @@ from __future__ import annotations
 import base64
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
 import yaml
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pydantic.fields import FieldInfo
 
-from kiozesim import Plant
+from kiozesim import Plant, Source
 from kiozesim.datasheet import Datasheet
 from kiozesim.plants import REGISTRY
+from kiozesim.sources import ConstantSource
+from kiozesim.sources.digester import Digester
+from kiozesim_utils.weather import FileWeatherSource
+
+Kind = Literal["plant", "source"]
 
 # Plant types whose spec is implemented (UI-005).
-OFFERED: tuple[str, ...] = ("pv", "hawt", "vawt")
+OFFERED: tuple[str, ...] = ("pv", "hawt", "vawt", "chp")
+
+SAMPLE_WEATHER = Path(__file__).resolve().parent / "sample_weather.csv"
+# Source types on the page (SRC-040): class and the settings the page fixes (not shown as fields).
+SOURCE_TYPES: dict[str, tuple[type[Source], dict[str, Any]]] = {  # type: ignore[type-arg]
+    "sample weather": (FileWeatherSource, {"path": SAMPLE_WEATHER}),  # SRC-041
+    "constant": (ConstantSource, {}),
+    "digester": (Digester, {}),
+}
+SOURCES_OFFERED: tuple[str, ...] = tuple(SOURCE_TYPES)
+PREFIX: dict[str, str] = {"plant": "p", "source": "s"}
+COUNT: dict[str, str] = {"plant": "n", "source": "ns"}
 
 # Drop-down value of a box's imported datasheet; no bundled name starts with ":" (IMP-003).
 UPLOADED = ":uploaded"
@@ -33,21 +53,24 @@ class Field:
     """One input on the page, described from a params model field (UI-006, UI-007, UI-008)."""
 
     name: str
-    kind: Literal["number", "text", "select", "checkbox"]
+    kind: Literal["number", "text", "select", "checkbox", "yaml"]
     default: str = ""
     min: float | None = None
     max: float | None = None
     step: str = "any"
     choices: tuple[str, ...] = ()
     datasheet: bool = False  # the datasheet drop-down, which also lists the box's import
+    example: str = ""  # YAML fields: an example shown greyed out in the empty text area
 
 
 @dataclass
 class Box:
-    """One plant box: its type, the typed-in strings and an error message per field."""
+    """One box: its type, the typed-in strings and an error message per field."""
 
     type: str
     values: dict[str, str]
+    kind: Kind = "plant"
+    wired: list[str] = field(default_factory=list)  # names of the sources it takes input from
     errors: dict[str, str] = field(default_factory=dict)  # "" = the box as a whole (UI-018)
     redrawn: bool = False  # type changed in this submit: fields reset, not simulated (UI-005)
     imported: str = ""  # YAML text of the box's imported datasheet (spec 0014)
@@ -55,7 +78,11 @@ class Box:
 
     @property
     def fields(self) -> list[Field]:
-        return fields_of(self.type)
+        return fields_of(self.type, self.kind)
+
+    @property
+    def name(self) -> str:
+        return self.values.get("name", "").strip()
 
     @property
     def carried(self) -> str:
@@ -74,6 +101,12 @@ def plant_class(plant_type: str) -> type[Plant]:  # type: ignore[type-arg]
     return REGISTRY[plant_type]
 
 
+def params_model(box_type: str, kind: Kind = "plant") -> type[BaseModel]:
+    if kind == "source":
+        return SOURCE_TYPES[box_type][0].params_model
+    return plant_class(box_type).params_model
+
+
 def _describe(name: str, info: FieldInfo) -> Field:
     ann = info.annotation
     default = "" if info.is_required() else str(info.default)
@@ -83,6 +116,9 @@ def _describe(name: str, info: FieldInfo) -> Field:
         return Field(name, "checkbox", "true" if info.default else "false")
     if get_origin(ann) is Literal:
         return Field(name, "select", default, choices=tuple(str(a) for a in get_args(ann)))
+    if get_origin(ann) in (dict, list, tuple):  # nested settings, typed as YAML (SRC-042)
+        example = yaml.safe_dump(info.examples[0], sort_keys=False) if info.examples else ""
+        return Field(name, "yaml", default, example=example)
     if ann in (int, float):
         lo = hi = None
         for m in info.metadata:
@@ -94,9 +130,10 @@ def _describe(name: str, info: FieldInfo) -> Field:
     return Field(name, "text", default)
 
 
-def fields_of(plant_type: str) -> list[Field]:
-    model = plant_class(plant_type).params_model
-    return [_describe(n, info) for n, info in model.model_fields.items()]
+def fields_of(box_type: str, kind: Kind = "plant") -> list[Field]:
+    fixed = SOURCE_TYPES[box_type][1] if kind == "source" else {}
+    model = params_model(box_type, kind)
+    return [_describe(n, info) for n, info in model.model_fields.items() if n not in fixed]
 
 
 def sheet_model(plant_type: str) -> type[Datasheet] | None:
@@ -169,34 +206,50 @@ def _carry(box: Box, carried: str) -> None:
     box.imported = text
 
 
-def unused_name(plant_type: str, taken: set[str]) -> str:
+def unused_name(box_type: str, taken: set[str]) -> str:
+    stem = box_type.replace(" ", "-")
     i = 1
-    while f"{plant_type}-{i}" in taken:
+    while f"{stem}-{i}" in taken:
         i += 1
-    return f"{plant_type}-{i}"
+    return f"{stem}-{i}"
 
 
-def new_box(plant_type: str, taken: set[str]) -> Box:
-    values = {f.name: f.default for f in fields_of(plant_type)}
-    values["name"] = unused_name(plant_type, taken)
-    return Box(plant_type, values)
+def new_box(box_type: str, taken: set[str], kind: Kind = "plant") -> Box:
+    values = {f.name: f.default for f in fields_of(box_type, kind)}
+    values["name"] = unused_name(box_type, taken)
+    return Box(box_type, values, kind)
 
 
-def read_boxes(form: Mapping[str, str]) -> list[Box]:
+def first_boxes() -> tuple[list[Box], list[Box]]:
+    """The first page: one plant wired to one sample weather source (SRC-044)."""
+    source = new_box(SOURCES_OFFERED[0], set(), "source")
+    source.values["name"] = "weather"
+    plant = new_box(OFFERED[0], {"weather"})
+    plant.wired = ["weather"]
+    return [plant], [source]
+
+
+def read_boxes(form: Mapping[str, str], kind: Kind = "plant") -> list[Box]:
     """Boxes from a posted form. A box whose type changed gets the new type's defaults."""
-    n = int(form.get("n", "0"))
+    offered = OFFERED if kind == "plant" else SOURCES_OFFERED
+    prefix = PREFIX[kind]
+    n = int(form.get(COUNT[kind], "0"))
     boxes: list[Box] = []
     for i in range(n):
-        posted = {k[len(f"p{i}.") :]: v for k, v in form.items() if k.startswith(f"p{i}.")}
-        plant_type = posted.get("type", "")
-        plant_type = plant_type if plant_type in OFFERED else OFFERED[0]
-        if posted.get("shown_type") != plant_type:
-            box = new_box(plant_type, {b.values["name"] for b in boxes})
+        posted = {
+            k[len(f"{prefix}{i}.") :]: v for k, v in form.items() if k.startswith(f"{prefix}{i}.")
+        }
+        box_type = posted.get("type", "")
+        box_type = box_type if box_type in offered else offered[0]
+        if posted.get("shown_type") != box_type:
+            box = new_box(box_type, {b.values["name"] for b in boxes}, kind)
             box.redrawn = True
         else:  # a changed type drops the import with the other fields (IMP-006)
-            box = Box(plant_type, {f.name: _posted(f, posted) for f in fields_of(plant_type)})
+            fields = fields_of(box_type, kind)
+            box = Box(box_type, {f.name: _posted(f, posted) for f in fields}, kind)
             if posted.get("imported"):
                 _carry(box, posted["imported"])
+        box.wired = [v for k, v in sorted(posted.items()) if k.startswith("from.")]
         boxes.append(box)
     return boxes
 
@@ -207,43 +260,66 @@ def _posted(f: Field, posted: Mapping[str, str]) -> str:
     return posted.get(f.name, "")
 
 
-def build_plants(boxes: list[Box]) -> list[Plant] | None:  # type: ignore[type-arg]
-    """Plants from boxes, or None after writing every error into its box (UI-013)."""
-    plants: list[Plant] = []  # type: ignore[type-arg]
-    seen: set[str] = set()
-    for box in boxes:
-        cls = plant_class(box.type)
-        data: dict[str, Any] = {}
-        for f in box.fields:
-            raw = box.values.get(f.name, "").strip()
-            if raw == "":
-                continue  # pydantic reports a missing required field
-            ann = cls.params_model.model_fields[f.name].annotation
-            if f.datasheet and raw == UPLOADED:  # the box's imported datasheet (IMP-007)
-                if box.sheet is None:
-                    box.errors[f.name] = "no imported datasheet; import a file first"
-                else:
-                    data[f.name] = box.sheet
-            elif isinstance(ann, type) and issubclass(ann, Datasheet):
-                try:
-                    data[f.name] = ann.bundled(raw)
-                except FileNotFoundError:
-                    box.errors[f.name] = f"no bundled datasheet {raw!r}"
+def _params(box: Box, seen: set[str]) -> BaseModel | None:
+    """The box's params model, or None after writing every error into the box (UI-013)."""
+    fixed = SOURCE_TYPES[box.type][1] if box.kind == "source" else {}
+    model = params_model(box.type, box.kind)
+    data: dict[str, Any] = dict(fixed)
+    for f in box.fields:
+        raw = box.values.get(f.name, "").strip()
+        if raw == "":
+            continue  # pydantic reports a missing required field
+        ann = model.model_fields[f.name].annotation
+        if f.datasheet and raw == UPLOADED:  # the box's imported datasheet (IMP-007)
+            if box.sheet is None:
+                box.errors[f.name] = "no imported datasheet; import a file first"
             else:
-                data[f.name] = raw
-        name = box.values.get("name", "").strip()
-        if name and name in seen:
-            box.errors["name"] = f"name {name!r} is already used by another plant"
-        seen.add(name)
-        try:
-            params = cls.params_model.model_validate(data)
-        except ValidationError as e:
-            for err in e.errors():
-                key = str(err["loc"][0]) if err["loc"] else ""  # no field: whole box
-                box.errors.setdefault(key, err["msg"])
-            continue
-        if not box.errors:
-            plants.append(cls(params))
-    if any(b.errors for b in boxes):
+                data[f.name] = box.sheet
+        elif isinstance(ann, type) and issubclass(ann, Datasheet):
+            try:
+                data[f.name] = ann.bundled(raw)
+            except FileNotFoundError:
+                box.errors[f.name] = f"no bundled datasheet {raw!r}"
+        elif f.kind == "yaml":  # builds plain values only, never Python objects (SRC-042)
+            try:
+                data[f.name] = yaml.safe_load(raw)
+            except yaml.YAMLError as e:
+                box.errors[f.name] = f"not YAML: {e}"
+        else:
+            data[f.name] = raw
+    name = box.name
+    if name and name in seen:
+        box.errors["name"] = f"name {name!r} is already used by another box"
+    seen.add(name)
+    try:
+        params = model.model_validate(data)
+    except ValidationError as e:
+        for err in e.errors():
+            key = str(err["loc"][0]) if err["loc"] else ""  # no field: whole box
+            msg = err["msg"] if len(err["loc"]) < 2 else _message(err["loc"][1:], err["msg"])
+            box.errors.setdefault(key, msg)
         return None
-    return plants
+    return None if box.errors else params
+
+
+def build(
+    plant_boxes: list[Box], source_boxes: list[Box]
+) -> tuple[list[Plant], list[Source]] | None:  # type: ignore[type-arg]
+    """Plants and sources from boxes, or None after writing every error into its box (UI-013)."""
+    seen: set[str] = set()
+    plants: list[Plant] = []  # type: ignore[type-arg]
+    sources: list[Source] = []  # type: ignore[type-arg]
+    for box in source_boxes:
+        params = _params(box, seen)
+        if params is not None:
+            try:
+                sources.append(SOURCE_TYPES[box.type][0](params))
+            except ValueError as e:  # e.g. a weather file that does not read
+                box.errors[""] = str(e)
+    for box in plant_boxes:
+        params = _params(box, seen)
+        if params is not None:
+            plants.append(plant_class(box.type)(params))
+    if any(b.errors for b in [*plant_boxes, *source_boxes]):
+        return None
+    return plants, sources

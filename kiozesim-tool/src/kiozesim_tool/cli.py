@@ -10,10 +10,12 @@ from contextlib import ExitStack
 import pandas as pd
 from pydantic import ValidationError
 
-from kiozesim import Plant, Portfolio, TimeSeries
+from kiozesim import Plant, Source
 from kiozesim_tool import config
 from kiozesim_tool.player import Clock, Player
-from kiozesim_tool.weather import DAY, WeatherSource
+from kiozesim_utils import wiring
+
+DAY = pd.Timedelta(days=1)
 
 
 def parse_step(text: str) -> pd.Timedelta:
@@ -28,18 +30,16 @@ def parse_step(text: str) -> pd.Timedelta:
 
 def simulate_chunk(
     plants: list[Plant],  # type: ignore[type-arg]
-    weather: WeatherSource,
+    sources: list[Source],  # type: ignore[type-arg]
+    wires: wiring.Wires,
     start: pd.Timestamp,
     end: pd.Timestamp,
     step: pd.Timedelta,
 ) -> pd.DataFrame:
-    """Portfolio output on `[start, end)` (SINK-020)."""
+    """Portfolio output on `[start, end)`, plants fed by their wired sources (SINK-020, SRC-021)."""
     # the time grid needs >= 2 points: simulate one extra step for a one-row chunk, then drop it
-    frame = weather.get(start, max(end, start + 2 * step), step)
-    inputs: dict[str, TimeSeries] = {
-        p.name: p.inputs_model.from_frame(frame) for p in plants if p.inputs_model is not None
-    }
-    out = Portfolio(plants).simulate(inputs)
+    index = pd.date_range(start, max(end, start + 2 * step), freq=step, inclusive="left")
+    out = wiring.run(sources, plants, wires, index)
     return out[out.index < end]
 
 
@@ -60,14 +60,16 @@ def run_sink(
         cfg, base = config.load(config_path)
         plants = config.build_plants(cfg.plants)
         sinks = config.build_sinks(cfg.sinks)
-        weather = config.build_weather(cfg.weather, base)
+        sources = config.build_sources(cfg.sources, base)
+        wires = {**config.wires_of(cfg.sources), **config.wires_of(cfg.plants)}
+        wiring.check([s.name for s in sources], [p.name for p in plants], wires)  # SRC-020
         start = cfg.start if cfg.start is not None else now().floor(step)  # SINK-043
         end = cfg.end
         for name, t in (("start", start), ("end", end)):
             if t is not None and not on_grid(t, step):
                 raise ValueError(f"{name} {t} is not on the {step_text} grid")
         chunk_end = start + DAY if end is None else min(start + DAY, end)
-        chunk = simulate_chunk(plants, weather, start, chunk_end, step)  # fail before sending
+        chunk = simulate_chunk(plants, sources, wires, start, chunk_end, step)  # fail first
     except (ValueError, TypeError, ImportError, OSError, ValidationError) as e:
         print(f"kiozesim-tool sink: error: {e}", file=sys.stderr)
         return 2
@@ -86,7 +88,7 @@ def run_sink(
                     if (max_chunks is not None and n >= max_chunks) or start == end:
                         break
                     chunk_end = start + DAY if end is None else min(start + DAY, end)
-                    chunk = simulate_chunk(plants, weather, start, chunk_end, step)
+                    chunk = simulate_chunk(plants, sources, wires, start, chunk_end, step)
             except KeyboardInterrupt:  # SINK-014: sinks are closed by the ExitStack
                 pass
     except OSError as e:  # a sink could not connect or lost it for good (MQTT-011, MQTT-032)
@@ -100,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("sink", help="simulate plants and stream the readings to sinks")
     p.add_argument("step", help="time step of the readings, e.g. 15min or 1h")
-    p.add_argument("--config", required=True, help="YAML file with plants, weather and sinks")
+    p.add_argument("--config", required=True, help="YAML file with sources, plants and sinks")
     args = parser.parse_args(argv)
     return run_sink(args.step, args.config)
 

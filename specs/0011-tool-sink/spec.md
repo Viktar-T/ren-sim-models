@@ -26,7 +26,7 @@ In:
 - The `Sink` interface (abstract class) in `kiozesim_tool`.
 - The playback loop ("player") that walks through the simulated output and hands each reading to
   the sinks at the right moment.
-- The `WeatherSource` interface and one implementation: a file source that repeats a one-day file.
+- Weather as a source from `kiozesim_utils` (spec 0016); the one-day file source moved there.
 - One sink: `stdout` (prints JSON lines), useful on its own and for testing.
 - A YAML config file describing plants and sinks.
 
@@ -98,24 +98,18 @@ WeatherSource ─► Portfolio.simulate ─► DataFrame ─► Player (clock, s
 - **SINK-014** On Ctrl+C the player MUST stop sending, close every sink and exit with code 0.
 
 ### Weather source
-- **SINK-040** `kiozesim_tool.weather` MUST define an abstract `WeatherSource` that returns the
-  weather for a requested UTC time range as a frame on the tool's step.
-- **SINK-041** `FileWeatherSource` MUST read a CSV whose time column holds only a time of day
-  (`HH:MM`, UTC, no date) covering exactly one day on a regular step, and MUST reject a file with
-  dates, gaps, or more or less than one day.
-- **SINK-042** `FileWeatherSource` MUST attach each time of day to the actual UTC date being
-  requested (today, then tomorrow, ...), so the same day repeats on every date and playback continues
-  past midnight without end.
+SINK-040, SINK-041, SINK-042 and SINK-044 are retired: the one-day file source and its rules moved
+to `kiozesim_utils.FileWeatherSource` (SRC-011): a CSV of times of day (`HH:MM`, UTC, no date)
+covering exactly one day on a regular step, repeated on every date, averaged to a coarser step or
+linearly interpolated to a finer one.
 - **SINK-043** Without `start:` in the config, playback MUST start at the current UTC time rounded
   down to `<step>`; at speed 1 the sample timestamps therefore match the wall clock.
-- **SINK-044** The weather MUST be resampled to `<step>`: averaged when `<step>` is coarser than the
-  file's step, linearly interpolated when finer.
 
 ### Command
-- **SINK-020** `kiozesim-tool sink <step> [options]` MUST simulate the configured plants with the
-  weather resampled to `<step>` (a pandas offset such as `15min`, `1h`) and play the result back.
-- **SINK-021** `--config FILE` MUST give a YAML file with `plants:` (type, name, datasheet, params),
-  `weather:` (source type and its settings, today only `file` with a path) and `sinks:` (one or more
+- **SINK-020** `kiozesim-tool sink <step> [options]` MUST simulate the configured plants, fed by their
+  wired sources on the `<step>` grid (a pandas offset such as `15min`, `1h`) and play the result back.
+- **SINK-021** `--config FILE` MUST give a YAML file with `sources:` (SRC-030), `plants:` (type,
+  name, `from`, datasheet, params) and `sinks:` (one or more
   sinks by registry name, each with its own settings). It is the only option besides `<step>`.
 - **SINK-022** Playback speed MUST be `speed:` in the config file (default `1`, real time). The CLI
   MUST use `argparse` (no new dependency).
@@ -134,7 +128,7 @@ WeatherSource ─► Portfolio.simulate ─► DataFrame ─► Player (clock, s
   type requires (today `ghi_w_m2`, `temp_air_c`, `wind_speed_m_s` at 10 m, `pressure_hpa`), the
   same made-up breezy day as the web UI's sample weather (UI-011).
 - **SINK-046** `kiozesim-tool/examples/sink.yaml` MUST contain one plant of each implemented type
-  (today a PV roof, a wind turbine and a vertical-axis turbine) and MUST run without error at
+  (today a PV roof, a wind turbine, a vertical-axis turbine and a gas engine on a digester) and MUST run without error at
   `speed: 0` over its time range.
 
 ### stdout sink
@@ -163,3 +157,5 @@ None.
 - 2026-10-08 HAWT support implemented
 - 2026-10-09 VAWT support (spec 0004): SINK-046 example gains a VAWT; no other change (VAWT needs
   no extra engine)
+- 2026-10-12 sources and wiring (0016): `sources:` replaces `weather:` (SINK-021), plants fed by
+  wired sources (SINK-020); SINK-040..042 and SINK-044 retired, moved to SRC-011 in `kiozesim_utils`

@@ -9,11 +9,11 @@ import pytest
 from pydantic import ValidationError
 
 from kiozesim.plants import REGISTRY
-from kiozesim.plants.base import Plant, TimeSeries
+from kiozesim.plants.base import Plant
 from kiozesim.plants.chp import CHPDatasheet, CHPInputs, CHPParams, CHPPlant
+from kiozesim.sources import Source
 from kiozesim.sources.digester import (
     Digester,
-    DigesterOutput,
     DigesterParams,
     Substrate,
 )
@@ -129,9 +129,9 @@ def test_simulate_takes_a_valid_time_axis():
 @pytest.mark.spec("BIO-002")
 def test_is_fuel_source_not_plant():
     out = digester().simulate(DAYS)
-    assert isinstance(out, DigesterOutput) and isinstance(out, TimeSeries)
-    assert out.fuel_kw.index.equals(DAYS) and out.methane_nm3_per_h.index.equals(DAYS)
-    assert not issubclass(Digester, Plant)
+    assert isinstance(out, pd.DataFrame) and out.index.equals(DAYS)
+    assert list(out.columns) == ["fuel_kw", "methane_nm3_per_h"]
+    assert issubclass(Digester, Source) and not issubclass(Digester, Plant)
     assert Digester not in REGISTRY.values()
 
 
@@ -174,7 +174,7 @@ def test_output_feeds_gas_engine_unchanged():
         thermal_efficiency=0.45,
     )
     engine = CHPPlant(CHPParams(name="e", datasheet=sheet, availability=1))
-    res = engine.simulate(CHPInputs(fuel_kw=out.fuel_kw))
+    res = engine.simulate(CHPInputs.from_frame(out))
     np.testing.assert_allclose(res.power_kw, 500.0)  # 1728 kW fuel > 1250 kW full load
 
 
@@ -221,6 +221,6 @@ def test_digester_into_500kw_engine_for_a_year():
     gas = digester().simulate(year)
     sheet = CHPDatasheet.bundled("tedom_flexi_530_biogas")
     engine = CHPPlant(CHPParams(name="e", datasheet=sheet, availability=0.9))
-    power = engine.simulate(CHPInputs(fuel_kw=gas.fuel_kw)).power_kw
+    power = engine.simulate(CHPInputs.from_frame(gas)).power_kw
     # 1728 kW fuel > 1313 kW full load: the engine runs full whenever available
     np.testing.assert_allclose(power.sum() * 24 / 1000, 528 * 0.9 * 8760 / 1000, rtol=1e-9)

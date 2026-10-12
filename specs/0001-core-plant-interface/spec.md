@@ -38,3 +38,5 @@ Out: any concrete technology; weather fetching; resampling helpers; dispatch/opt
 - 2026-10-06 CORE-006: datasheets move to the central `kioze_sim/datasheets/<tech>/` (constitution 13); files move as part of 0007
 - 2026-10-06 package renamed `kioze_sim` → `kiozesim`, golden cases under `kiozesim/tests/` (0009)
 - 2026-10-12 heat output confirmed for the gas engine (`heat_kw` on `CHPOutput`, 0015); boiler still open
+- 2026-10-12 `TimeSeries.from_frame` raises `MissingInputError` for absent columns (SRC-003); sources
+  (`kiozesim.sources.Source`) sit next to plants as boxes that make time series (0016)

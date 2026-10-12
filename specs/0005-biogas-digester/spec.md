@@ -141,11 +141,10 @@ to react), so both are left to a later spec.
 | `name` | – | required | non-empty | digester name |
 | `substrates` | – | required | ≥ 1, unique names | what it can be fed |
 
-`Digester.simulate(index)` takes only the time axis to fill (time-grid rules, CORE-002).
+`Digester` is a `Source` (0016): `simulate(index, inputs=None)` takes the time axis to fill
+(time-grid rules, CORE-002) and needs no input columns. It returns a DataFrame on `index`:
 
-`DigesterOutput` (`TimeSeries`, on `index`):
-
-| Field | Unit | Meaning |
+| Column | Unit | Meaning |
 |---|---|---|
 | `fuel_kw` | kW | methane energy made, average over the period; the gas engine's input |
 | `methane_nm3_per_h` | Nm³/h | methane volume made, average over the period |
@@ -155,13 +154,13 @@ to react), so both are left to a later spec.
 Parameters and inputs
 - **BIO-001** `Substrate` and `DigesterParams` MUST have exactly the fields, units, defaults and allowed ranges of their tables and MUST reject any value outside them at construction; `substrates` MUST be non-empty with unique names.
 - **BIO-003** `formula` MUST accept the elements C, H, O, N and S, each at most once, each followed by an optional positive count (whole or decimal, missing means 1), with C and H required; anything else, or a formula giving no methane by Buswell–Boyle, MUST be rejected with an error naming the substrate.
-- **BIO-004** `Digester.simulate(index)` MUST take only a time axis and MUST reject one that breaks the CORE-002 index rules.
+- **BIO-004** `Digester.simulate(index)` MUST need no input columns and MUST reject an index that breaks the CORE-002 index rules.
 
 Model
-- **BIO-002** `Digester` MUST be a fuel source (constitution 2): `simulate(index)` returns a `DigesterOutput` on exactly `index`; it is not a `Plant` and not in `REGISTRY`.
+- **BIO-002** `Digester` MUST be a `Source` (constitution 2, 0016): `simulate(index)` returns a DataFrame with exactly the columns `fuel_kw` and `methane_nm3_per_h` on exactly `index`; it is not a `Plant` and not in `REGISTRY`.
 - **BIO-005** The methane yield of a formula MUST be computed by the Buswell–Boyle equation, molar masses and 22.414 l/mol given in Domain notes.
 - **BIO-006** `methane_nm3_per_h` and `fuel_kw` MUST follow the equations under "From feed to fuel" and MUST be the same on every step.
-- **BIO-007** `DigesterOutput.fuel_kw` MUST be usable unchanged as the gas engine's `fuel_kw` input (0015).
+- **BIO-007** The digester's output table MUST be usable unchanged as the gas engine's input (`CHPInputs.from_frame`, 0015).
 - **BIO-008** A digester whose substrates all have `fresh_t_per_day` 0 MUST give 0 `fuel_kw` and 0 `methane_nm3_per_h`.
 - **BIO-009** The digester MUST need no package beyond the library's core dependencies.
 
@@ -197,3 +196,5 @@ Validation
 - 2026-10-12 implemented (`kiozesim/sources/digester/`)
 - 2026-10-12 feed moves into the settings (`Substrate.fresh_t_per_day`); `DigesterInputs` removed,
   `simulate(index)` takes only the time axis (BIO-002, BIO-004, BIO-006, BIO-008); output constant
+- 2026-10-12 digester is a `Source` (0016): output is a DataFrame, `DigesterOutput` removed (BIO-002,
+  BIO-004, BIO-007)

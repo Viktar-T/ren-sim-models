@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from kiozesim.errors import MissingInputError
 from kiozesim.timegrid import TimeGridError, validate_time_index
 
 
@@ -54,6 +55,10 @@ class TimeSeries(BaseModel):
     def from_frame(cls, df: pd.DataFrame, **extra: object) -> Self:
         """Build from a DataFrame, taking the columns this struct declares."""
         cols = {c: df[c] for c in df.columns if c in cls.model_fields}
+        given = cols.keys() | extra.keys()
+        missing = [n for n, f in cls.model_fields.items() if f.is_required() and n not in given]
+        if missing:
+            raise MissingInputError(cls.__name__, missing)  # SRC-003
         return cls(**cols, **extra)
 
     def to_frame(self) -> pd.DataFrame:

@@ -21,6 +21,7 @@ members = [
     "kiozesim",
     "kiozesim-tool",
     "kiozesim-ui",
+    "kiozesim-utils",
 ]
 
 [manifest.dependency-groups]
@@ -978,6 +979,7 @@ version = "0.1.0"
 source = { editable = "kiozesim-tool" }
 dependencies = [
     { name = "kiozesim", extra = ["pv", "wind"] },
+    { name = "kiozesim-utils" },
     { name = "paho-mqtt" },
     { name = "pandas" },
     { name = "pydantic" },
@@ -987,6 +989,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "kiozesim", extras = ["pv", "wind"], editable = "kiozesim" },
+    { name = "kiozesim-utils", editable = "kiozesim-utils" },
     { name = "paho-mqtt", specifier = ">=2" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pydantic", specifier = ">=2.7" },
@@ -1001,6 +1004,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "jinja2" },
     { name = "kiozesim", extra = ["pv", "wind"] },
+    { name = "kiozesim-utils" },
     { name = "matplotlib" },
     { name = "python-multipart" },
     { name = "pyyaml" },
@@ -1012,10 +1016,28 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "kiozesim", extras = ["pv", "wind"], editable = "kiozesim" },
+    { name = "kiozesim-utils", editable = "kiozesim-utils" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "uvicorn", specifier = ">=0.30" },
+]
+
+[[package]]
+name = "kiozesim-utils"
+version = "0.1.0"
+source = { editable = "kiozesim-utils" }
+dependencies = [
+    { name = "kiozesim" },
+    { name = "pandas" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "kiozesim", editable = "kiozesim" },
+    { name = "pandas", specifier = ">=2.2" },
+    { name = "pydantic", specifier = ">=2.7" },
 ]
 
 [[package]]

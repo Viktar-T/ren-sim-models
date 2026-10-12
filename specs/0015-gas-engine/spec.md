@@ -2,7 +2,7 @@
 id: 0015
 title: Gas engine (CHP)
 prefix: CHP
-status: approved
+status: implemented
 ---
 
 # 0015 Gas engine (CHP)
@@ -161,3 +161,4 @@ Validation
   `fuel_kw` (from the digester or any other source); heat as `heat_kw` on `CHPOutput`
 - 2026-10-12 bundled units chosen: TEDOM Cento 100, Cento 200, Flexi 530 (biogas)
 - 2026-10-12 approved
+- 2026-10-12 implemented; usable in both apps through sources and wiring (0016)

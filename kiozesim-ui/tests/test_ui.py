@@ -4,6 +4,7 @@ FastAPI's TestClient."""
 from __future__ import annotations
 
 import base64
+import html as html_lib
 import re
 import tomllib
 from pathlib import Path
@@ -20,6 +21,7 @@ from kiozesim.plants.vawt import VAWTDatasheet
 from kiozesim_ui import __main__ as cli
 from kiozesim_ui import form
 from kiozesim_ui.app import app
+from kiozesim_utils.weather import FileWeatherParams, FileWeatherSource
 
 PKG = Path(kiozesim_ui.__file__).resolve().parent
 ROOT = PKG.parents[2]
@@ -71,10 +73,23 @@ VAWT_BOX = HAWT_BOX | {
 }
 
 
-def post(action: str, *boxes: dict[str, str], files: dict[str, Upload] | None = None) -> str:
-    data = {"action": action, "n": str(len(boxes))}
-    for i, box in enumerate(boxes):
-        data |= {f"p{i}.{k}": v for k, v in box.items()}
+WEATHER = {"type": "sample weather", "shown_type": "sample weather", "name": "weather"}
+
+
+def post(
+    action: str,
+    *boxes: dict[str, str],
+    files: dict[str, Upload] | None = None,
+    sources: tuple[dict[str, str], ...] = (WEATHER,),
+) -> str:
+    """Post plant boxes (wired to `weather` unless a box gives `from`, a list) and source boxes."""
+    data: dict[str, str] = {"action": action, "n": str(len(boxes)), "ns": str(len(sources))}
+    for prefix, group in (("p", boxes), ("s", sources)):
+        for i, box in enumerate(group):
+            box = dict(box)
+            froms = box.pop("from", ["weather"] if prefix == "p" else [])
+            data |= {f"{prefix}{i}.{k}": v for k, v in box.items()}
+            data |= {f"{prefix}{i}.from.{j}": f for j, f in enumerate(froms)}
     r = client.post("/", data=data, files=files)
     assert r.status_code == 200
     return r.text
@@ -105,7 +120,10 @@ def boxes(html: str) -> int:
 
 def tag(html: str, name: str) -> str:
     """The <input>/<select> element (with its options) named `name`."""
-    m = re.search(rf'<(input|select)[^>]*name="{re.escape(name)}"[^>]*>(.*?</select>)?', html, re.S)
+    n = re.escape(name)
+    m = re.search(
+        rf'<select[^>]*name="{n}"[^>]*>.*?</select>|<input[^>]*name="{n}"[^>]*>', html, re.S
+    )
     assert m, f"no field {name}"
     return m.group(0)
 
@@ -135,7 +153,9 @@ def energy(html: str, plant: str) -> float:
 
 
 def library_kwh(name: str) -> float:
-    w = pd.read_csv(PKG / "sample_weather.csv", index_col="time", parse_dates=True)
+    w = FileWeatherSource(FileWeatherParams(name="w", path=PKG / "sample_weather.csv")).simulate(
+        pd.date_range("2026-06-21", periods=24, freq="h", tz="UTC")
+    )
     params = PVParams(
         name=name,
         datasheet=PVDatasheet.bundled(PV_BOX["datasheet"]),
@@ -319,7 +339,9 @@ def test_one_run_button_runs_all_plants(run_two: str) -> None:
 
 @pytest.mark.spec("UI-011")
 def test_sample_weather_has_every_column_and_a_breeze() -> None:
-    w = pd.read_csv(PKG / "sample_weather.csv", index_col="time", parse_dates=True)
+    w = FileWeatherSource(FileWeatherParams(name="w", path=PKG / "sample_weather.csv")).simulate(
+        pd.date_range("2026-06-21", periods=24, freq="h", tz="UTC")
+    )
     assert {"ghi_w_m2", "temp_air_c", "wind_speed_m_s", "pressure_hpa"} <= set(w.columns)
     assert len(w) == 24 and (w.index[1] - w.index[0]) == pd.Timedelta("1h")
     assert w["wind_speed_m_s"].min() >= 3.5 and w["wind_speed_m_s"].max() <= 10.5
@@ -609,3 +631,126 @@ def test_file_cannot_run_code_or_add_html() -> None:
     page = post("import:0", pv("a"), files=upload("model: <script>alert(1)</script>: x\n"))
     assert "&lt;script&gt;" in error(page, "p0.upload")
     assert "<script" not in page
+
+
+# --- sources and wiring (spec 0016) -----------------------------------------------------------
+
+SUBSTRATES = """
+- name: maize silage
+  fresh_t_per_day: 40
+  dry_matter_frac: 0.33
+  organic_frac: 0.95
+  formula: C6H10O5
+  biodegradability: 0.8
+"""
+FARM = {"type": "digester", "shown_type": "digester", "name": "farm", "substrates": SUBSTRATES}
+CHP_BOX = {
+    "type": "chp",
+    "shown_type": "chp",
+    "name": "engine",
+    "datasheet": "tedom_flexi_530_biogas",
+    "availability": "0.92",
+    "from": ["farm"],
+}
+
+
+def constant(name: str, values: str) -> dict[str, str]:
+    return {"type": "constant", "shown_type": "constant", "name": name, "values": values}
+
+
+def box_error(html: str, box: str) -> str:
+    m = re.search(rf'<p class="error" data-for="{re.escape(box)}">([^<]*)</p>', html)
+    return html_lib.unescape(m.group(1)) if m else ""
+
+
+def source_boxes(html: str) -> int:
+    return html.count('<fieldset class="source"')
+
+
+@pytest.mark.spec("SRC-043")
+def test_sources_column_add_remove() -> None:
+    first = client.get("/").text
+    assert source_boxes(first) == 1
+    assert first.index('<div class="plants">') < first.index('<div class="sources">')
+    assert 'value="remove_source:' not in first  # the last source box stays
+    page = post("add_source", pv("roof"), sources=(WEATHER, FARM))
+    assert source_boxes(page) == 3 and value(page, "s1.name") == "farm"
+    assert 'value="add_source"' in page and 'value="apply"' in page
+    page = post("remove_source:0", pv("roof"), sources=(WEATHER, FARM))
+    assert source_boxes(page) == 1 and value(page, "s0.name") == "farm"
+    css = (PKG / "static" / "style.css").read_text()
+    assert "grid-template-columns" in css and "auto-fit" in css
+
+
+@pytest.mark.spec("SRC-043")
+def test_source_type_change_is_redrawn() -> None:
+    page = post("apply", pv("roof"), sources=({**WEATHER, "type": "digester"},))
+    assert value(page, "s0.type") == "digester" and "s0.substrates" in page
+
+
+@pytest.mark.spec("SRC-044")
+def test_first_page_plant_wired_to_sample_weather() -> None:
+    first = client.get("/").text
+    assert value(first, "s0.type") == "sample weather" and value(first, "s0.name") == "weather"
+    assert checked(first, "p0.from.0") and 'value="weather"' in tag(first, "p0.from.0")
+    added = post("add", pv("roof"))
+    assert not checked(added, "p1.from.0")  # later boxes start unwired
+
+
+@pytest.mark.spec("SRC-040")
+def test_source_types_and_from_tick_boxes() -> None:
+    page = post("apply", pv("roof"), sources=(WEATHER, FARM))
+    assert options(page, "s0.type") == ["sample weather", "constant", "digester"]
+    assert "p0.from.0" in page and "p0.from.1" in page  # one tick box per source
+    assert "s1.from.0" in page and "s1.from.1" not in page  # a source lists the others only
+
+
+@pytest.mark.spec("SRC-041")
+def test_sample_weather_is_file_weather_source() -> None:
+    cls, fixed = form.SOURCE_TYPES["sample weather"]
+    assert cls is FileWeatherSource and fixed["path"] == PKG / "sample_weather.csv"
+    assert "s0.path" not in client.get("/").text  # fixed by the page, not a field
+
+
+@pytest.mark.spec("SRC-042")
+def test_digester_substrates_as_yaml() -> None:
+    page = post("apply", pv("roof"), sources=(WEATHER, {**FARM, "substrates": ""}))
+    assert '<textarea id="s1.substrates"' in page and "maize silage" in page  # example shown
+    bad = post("run", pv("roof"), sources=(WEATHER, {**FARM, "substrates": "- name: [unclosed"}))
+    assert "not YAML" in error(bad, "s1.substrates") and "data-energy-kwh" not in bad
+    worse = post("run", pv("roof"), sources=(WEATHER, {**FARM, "substrates": SUBSTRATES + "x"}))
+    assert error(worse, "s1.substrates")
+    formula = SUBSTRATES.replace("C6H10O5", "H2O")
+    wrong = post("run", pv("roof"), sources=(WEATHER, {**FARM, "substrates": formula}))
+    assert "needs C and H" in error(wrong, "s1.substrates")
+
+
+@pytest.mark.spec("SRC-023")
+def test_gas_engine_on_digester_runs() -> None:
+    page = post("run", pv("roof"), CHP_BOX, sources=(WEATHER, FARM))
+    assert energy(page, "engine") == pytest.approx(528 * 0.92 * 24, rel=1e-4)
+    assert "chp" in options(page, "p1.type")
+
+
+@pytest.mark.spec("SRC-021")
+def test_plant_wired_to_two_sources() -> None:
+    roof = pv("roof", **{"from": ["weather", "extra"]})  # type: ignore[arg-type]
+    page = post("run", roof, sources=(WEATHER, constant("extra", "x: 1")))
+    assert energy(page, "roof") == pytest.approx(library_kwh("roof"), abs=0.01)
+
+
+@pytest.mark.spec("SRC-020")
+@pytest.mark.spec("SRC-022")
+def test_wiring_errors_on_the_plant_box() -> None:
+    unwired = post("run", pv("roof", **{"from": []}))  # type: ignore[arg-type]
+    assert "not wired to any source" in box_error(unwired, "p0")
+    wrong = post("run", {**CHP_BOX, "from": ["weather"]})
+    assert "engine: wired to weather, which give no fuel_kw" in box_error(wrong, "p0")
+    assert "data-energy-kwh" not in wrong
+
+
+@pytest.mark.spec("SRC-024")
+def test_same_column_from_two_sources_on_the_page() -> None:
+    engine = {**CHP_BOX, "from": ["a", "b"]}
+    page = post("run", engine, sources=(constant("a", "fuel_kw: 1"), constant("b", "fuel_kw: 2")))
+    assert "'fuel_kw' comes from both a and b" in box_error(page, "p0")

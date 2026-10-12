@@ -2,9 +2,23 @@
 speed: 3600          # 1 = real time; 3600 = one simulated hour per real second; 0 = no waiting
 start: 2026-06-01T00:00   # optional time range (UTC if no zone); default: from now, for ever
 end: 2026-06-28T00:00     # playback stops before this; required when speed is 0
+sources:
+  - type: weather_file
+    name: weather
+    path: day_weather.csv   # relative to this file
+  - type: digester            # steady feed -> methane for the gas engine (spec 0005)
+    name: farm
+    substrates:
+      - name: maize silage
+        fresh_t_per_day: 40
+        dry_matter_frac: 0.33
+        organic_frac: 0.95
+        formula: C6H10O5        # plant fibre and starch
+        biodegradability: 0.8
 plants:
   - type: pv
     name: roof
+    from: weather
     datasheet: jinko_solar_jkm440n_54hl4r_b
     latitude_deg: 52.23
     longitude_deg: 21.01
@@ -14,14 +28,17 @@ plants:
     inverter_ac_kw: 4.0
   - type: hawt
     name: turbine
+    from: weather
     datasheet: E-82/2300    # a turbine from windpowerlib's library, by its type code
     hub_height_m: 108
   - type: vawt
     name: spire
+    from: weather
     datasheet: mariah_power_windspire   # measured power curve (NREL test report)
     hub_height_m: 10
-weather:
-  type: file
-  path: day_weather.csv   # relative to this file
+  - type: chp
+    name: engine
+    from: farm
+    datasheet: tedom_flexi_530_biogas   # 528 kW biogas engine
 sinks:
   - type: stdout

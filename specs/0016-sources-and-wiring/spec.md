@@ -2,7 +2,7 @@
 id: 0016
 title: Sources and wiring
 prefix: SRC
-status: draft
+status: implemented
 ---
 
 # 0016 Sources and wiring
@@ -104,7 +104,9 @@ plants:
 The top-level `weather:` key is removed; it becomes a `weather_file` source.
 
 ### Web page
-Source boxes above the plant boxes. Source types offered: `sample weather` (the UI's sample day),
+Two columns: plant boxes on the left, as today, and source boxes on the right, handled the same way:
+a type selector with **Apply**, a **Remove** button, and a **+** button below the last box. On a
+narrow screen the source column moves below the plant column. Source types offered: `sample weather` (the UI's sample day),
 `constant`, `digester`. Each plant box, and each source box with inputs, gets a **from** list of
 tick boxes, one per source on the page. A digester's substrates are typed as YAML text, one list
 entry per substrate with the `Substrate` fields. The chart and energy totals show plants only.
@@ -141,6 +143,8 @@ Tool
 - **SRC-031** `kiozesim-tool/examples/sink.yaml` MUST wire its weather plants to a `weather_file` source and MUST also contain a digester → `chp` chain, and MUST run at `speed: 0`.
 
 Web app
+- **SRC-043** Source boxes MUST sit in a column to the right of the plant boxes and MUST behave like plant boxes (UI-004, UI-005, UI-019): a type selector with **Apply**, a **Remove** button (not on the last source box), and a **+** button below the last source box that adds one, keeping everything typed in all boxes.
+- **SRC-044** The first page MUST show one plant box and one `sample weather` source box, with that plant wired to it; boxes added later start unwired.
 - **SRC-040** The page MUST offer source boxes of types `sample weather`, `constant` and `digester`, and a **from** list of tick boxes on each plant box and each source box with inputs, one per source on the page.
 - **SRC-042** A digester box MUST take its substrates as YAML text (a list of `Substrate` field mappings) and MUST show a substrate error (bad YAML, a field out of range, a bad formula) on that box.
 - **SRC-041** `sample weather` MUST be a `FileWeatherSource` reading the UI's sample day.
@@ -172,3 +176,7 @@ Web app
   kept for testing only
 - 2026-10-12 open questions resolved: several sources per box (SRC-024), substrates as YAML
   (SRC-042), `ConstantSource` in the library, shared package named `kiozesim-utils`
+- 2026-10-12 web page: sources in a right-hand column, same box handling as plants (SRC-043);
+  first page one plant wired to one sample weather source (SRC-044)
+- 2026-10-12 approved
+- 2026-10-12 implemented (`kiozesim/sources/`, `kiozesim-utils`, tool and web app)

@@ -3,8 +3,9 @@
 Python library simulating power generating installations (PV, HAWT, VAWT, gas engine/CHP fed by a biogas digester, boiler + heat store)
 from input parameters and weather. Spec-driven: read `specs/README.md` and `specs/constitution.md` first.
 
-uv workspace with three packages: library `kiozesim/` (import `kiozesim`), CLI `kiozesim-tool/`
-(`kiozesim_tool`), web app `kiozesim-ui/` (`kiozesim_ui`). Code in `<package>/src/`, tests in
+uv workspace with four packages: library `kiozesim/` (import `kiozesim`), CLI `kiozesim-tool/`
+(`kiozesim_tool`), web app `kiozesim-ui/` (`kiozesim_ui`), and `kiozesim-utils/` (`kiozesim_utils`,
+code both apps share: weather sources, wiring; spec 0016). Code in `<package>/src/`, tests in
 `<package>/tests/`. Only the library's `tests/` has an `__init__.py`; app test folders must not
 (it would clash with the library's `tests` package under pytest).
 

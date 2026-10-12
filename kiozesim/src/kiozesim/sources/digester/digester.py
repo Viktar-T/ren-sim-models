@@ -1,9 +1,9 @@
 """Biogas digester: steady feed in, methane out, as fuel for a gas engine. Spec 0005.
 
-I/O contract
-  input : only the time axis to fill; the feed (t/day per substrate) is a setting
-  output: DigesterOutput (TimeSeries): fuel_kw (methane energy, lower heating value) and
-          methane_nm3_per_h on that axis; `fuel_kw` is the gas engine's input (spec 0015).
+I/O contract (a Source, spec 0016)
+  input : only the time axis to fill; no input columns, the feed (t/day per substrate) is a setting
+  output: DataFrame with fuel_kw (methane energy, lower heating value) and methane_nm3_per_h on
+          that axis; `fuel_kw` is the gas engine's input (spec 0015).
 Steady feeding: the output is the same on every step.
 """
 
@@ -15,8 +15,7 @@ from typing import Self
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from kiozesim.plants.base import TimeSeries
-from kiozesim.timegrid import validate_time_index
+from kiozesim.sources.base import Source
 
 NM3_PER_MOL = 0.022414  # ideal gas at 0 degC, 1.01325 bar
 CH4_KWH_PER_NM3 = 9.97  # methane lower heating value, DIN EN ISO 6976
@@ -87,7 +86,21 @@ class DigesterParams(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str = Field(min_length=1)
-    substrates: tuple[Substrate, ...] = Field(min_length=1)
+    substrates: tuple[Substrate, ...] = Field(
+        min_length=1,
+        examples=[
+            [
+                {
+                    "name": "maize silage",
+                    "fresh_t_per_day": 40,
+                    "dry_matter_frac": 0.33,
+                    "organic_frac": 0.95,
+                    "formula": "C6H10O5",
+                    "biodegradability": 0.8,
+                }
+            ]
+        ],
+    )
 
     @field_validator("substrates")
     @classmethod
@@ -99,26 +112,16 @@ class DigesterParams(BaseModel):
         return v
 
 
-class DigesterOutput(TimeSeries):
-    fuel_kw: pd.Series  # methane energy flow, kW (lower heating value)
-    methane_nm3_per_h: pd.Series
+class Digester(Source[DigesterParams]):
+    """Steady feed -> constant methane, as a fuel table for a gas engine."""
 
+    params_model = DigesterParams
 
-class Digester:
-    """A fuel source (constitution 2): pure function of (params, time axis) -> methane."""
-
-    def __init__(self, params: DigesterParams) -> None:
-        self.params = params
-
-    @property
-    def name(self) -> str:
-        return self.params.name
-
-    def simulate(self, index: pd.DatetimeIndex) -> DigesterOutput:
-        validate_time_index(index)
+    def _simulate(self, index: pd.DatetimeIndex, inputs: pd.DataFrame | None) -> pd.DataFrame:
         subs = self.params.substrates
         nm3_per_h = sum(s.fresh_t_per_day * s.methane_nm3_per_t for s in subs) / 24
-        methane = pd.Series(float(nm3_per_h), index=index, name="methane_nm3_per_h")
-        return DigesterOutput(
-            fuel_kw=(methane * CH4_KWH_PER_NM3).rename("fuel_kw"), methane_nm3_per_h=methane
+        return pd.DataFrame(
+            {"fuel_kw": nm3_per_h * CH4_KWH_PER_NM3, "methane_nm3_per_h": nm3_per_h},
+            index=index,
+            dtype=float,
         )
