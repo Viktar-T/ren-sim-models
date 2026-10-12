@@ -405,7 +405,7 @@ def test_every_implemented_type_usable(tmp_path: Path, capsys: pytest.CaptureFix
 def test_example_weather_columns_match_ui_sample() -> None:
     day = pd.read_csv(EXAMPLES / "day_weather.csv")
     assert {"ghi_w_m2", "temp_air_c", "wind_speed_m_s", "pressure_hpa"} <= set(day.columns)
-    ui = pd.read_csv(ROOT / "kiozesim-ui" / "src" / "kiozesim_ui" / "sample_weather.csv")
+    ui = pd.read_csv(ROOT / "kiozesim-tool" / "src" / "kiozesim_tool" / "ui" / "sample_weather.csv")
     pd.testing.assert_frame_equal(day.drop(columns="time"), ui.drop(columns="time"))
     assert (day["time"] == ui["time"]).all()
 

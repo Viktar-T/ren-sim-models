@@ -1,4 +1,4 @@
-"""`kiozesim-tool` command line (spec 0011)."""
+"""`kiozesim-tool` command line: `sink` (spec 0011) and `ui` (spec 0017)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,8 @@ import pandas as pd
 from pydantic import ValidationError
 
 from kiozesim import Plant, Source
-from kiozesim_tool import config
+from kiozesim_tool import config, wiring
 from kiozesim_tool.player import Clock, Player
-from kiozesim_utils import wiring
 
 DAY = pd.Timedelta(days=1)
 
@@ -97,13 +96,28 @@ def run_sink(
     return 0
 
 
+def run_ui(host: str, port: int) -> int:
+    """Start the web UI (APP-003); imported here so `sink` does not load the web stack."""
+    import uvicorn
+
+    from kiozesim_tool.ui.app import app
+
+    uvicorn.run(app, host=host, port=port)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="kiozesim-tool")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("sink", help="simulate plants and stream the readings to sinks")
     p.add_argument("step", help="time step of the readings, e.g. 15min or 1h")
     p.add_argument("--config", required=True, help="YAML file with sources, plants and sinks")
+    u = sub.add_parser("ui", help="start the web UI")
+    u.add_argument("--host", default="127.0.0.1")
+    u.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
+    if args.command == "ui":
+        return run_ui(args.host, args.port)
     return run_sink(args.step, args.config)
 
 

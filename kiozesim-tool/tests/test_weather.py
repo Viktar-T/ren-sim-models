@@ -1,16 +1,15 @@
-"""Spec 0016: the one-day weather file as a source (SRC-010..012, former SINK-041..044)."""
+"""Spec 0016: the one-day weather file as a source (SRC-011, SRC-012, former SINK-041..044)."""
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from kiozesim import Source
-from kiozesim_utils.sources import build_source
-from kiozesim_utils.weather import FileWeatherParams, FileWeatherSource
+from kiozesim_tool.boxes import build_source
+from kiozesim_tool.weather import FileWeatherParams, FileWeatherSource
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_DAY = ROOT / "kiozesim-tool" / "examples" / "day_weather.csv"
@@ -33,17 +32,6 @@ def source(path: Path) -> FileWeatherSource:
 
 def axis(start: pd.Timestamp, end: pd.Timestamp, step: str) -> pd.DatetimeIndex:
     return pd.date_range(start, end, freq=step, inclusive="left")
-
-
-@pytest.mark.spec("SRC-010")
-def test_package_depends_on_library_only_and_apps_use_it():
-    deps = tomllib.loads((ROOT / "kiozesim-utils" / "pyproject.toml").read_text())
-    assert [d for d in deps["project"]["dependencies"] if d.startswith("kiozesim")] == ["kiozesim"]
-    for app in ("kiozesim-tool", "kiozesim-ui"):
-        app_deps = tomllib.loads((ROOT / app / "pyproject.toml").read_text())
-        assert "kiozesim-utils" in app_deps["project"]["dependencies"]
-    lib = tomllib.loads((ROOT / "kiozesim" / "pyproject.toml").read_text())
-    assert not any("utils" in d for d in lib["project"]["dependencies"])
 
 
 @pytest.mark.spec("SRC-011")
@@ -106,10 +94,8 @@ def test_build_source_resolves_relative_path(tmp_path: Path):
 
 
 @pytest.mark.spec("SRC-012")
-def test_apps_take_weather_only_from_utils():
-    assert not (ROOT / "kiozesim-tool" / "src" / "kiozesim_tool" / "weather.py").exists()
-    for app in ("kiozesim_tool", "kiozesim_ui"):
-        pkg = ROOT / app.replace("_", "-") / "src" / app
-        for py in pkg.rglob("*.py"):
-            text = py.read_text()
-            assert "WeatherSource" not in text or "kiozesim_utils" in text, py
+def test_apps_take_weather_only_from_weather_module():
+    pkg = ROOT / "kiozesim-tool" / "src" / "kiozesim_tool"
+    for py in pkg.rglob("*.py"):
+        if py.name != "weather.py":
+            assert "class FileWeather" not in py.read_text(), py

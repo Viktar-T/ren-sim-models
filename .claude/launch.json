@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "kiozesim-ui",
+      "name": "kiozesim-tool-ui",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "kiozesim-ui", "--port", "8000"],
+      "runtimeArgs": ["run", "kiozesim-tool", "ui", "--port", "8000"],
       "port": 8000
     }
   ]

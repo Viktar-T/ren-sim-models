@@ -48,10 +48,10 @@ Out:
 
 ### Page
 - **UI-001** The server MUST render the page in Python from Jinja2 templates in
-  `kiozesim_ui/templates/`. Each button press MUST be a normal HTML form submission answered with a
+  `kiozesim_tool/ui/templates/`. Each button press MUST be a normal HTML form submission answered with a
   freshly rendered page.
 - **UI-002** The page MUST NOT load anything from outside the server (no CDN, web fonts or analytics).
-  Any CSS or JavaScript MUST be served from `kiozesim_ui/static/`.
+  Any CSS or JavaScript MUST be served from `kiozesim_tool/ui/static/`.
 - **UI-003** The page MUST look like a plain native form: system font, grey/white, one bordered
   group box (`<fieldset>`) per plant, no animations, no images except the chart.
 
@@ -81,9 +81,9 @@ Out:
 ### Running
 - **UI-010** There MUST be exactly one **Run** button. It MUST simulate every plant on the page in
   one go, through `Portfolio`, each fed by the sources it is wired to (spec 0016).
-- **UI-011** The `sample weather` source (SRC-041) MUST read `kiozesim_ui/sample_weather.csv`, shipped
-  inside the UI package so the installed app does not depend on the repository's `examples/`
-  folder: one made-up day, hourly, UTC, times of day without a date (the `kiozesim_utils`
+- **UI-011** The `sample weather` source (SRC-041) MUST read `kiozesim_tool/ui/sample_weather.csv`, shipped
+  inside the app package so the installed app does not depend on the repository's `examples/`
+  folder: one made-up day, hourly, UTC, times of day without a date (the `kiozesim_tool.weather`
   `FileWeatherSource` format), run on 2026-06-21, holding every column any offered plant type requires (today `ghi_w_m2`, `temp_air_c`,
   `wind_speed_m_s` at 10 m, `pressure_hpa`). The wind MUST be breezy enough (about 4–10 m/s at
   10 m) that a large wind turbine visibly produces power.
@@ -103,9 +103,8 @@ Out:
   The page MUST need no JavaScript.
 
 ### Server
-- **UI-016** `uv run kiozesim-ui` MUST start the server. `--host` and `--port` options MUST exist,
-  defaulting to `127.0.0.1` and `8000`.
-- **UI-017** `kiozesim_ui` MUST use only the public API of `kiozesim` (no module whose name starts
+UI-016 is retired: the server is started by `kiozesim-tool ui` (APP-003, spec 0017).
+- **UI-017** `kiozesim_tool.ui` MUST use only the public API of `kiozesim` (no module whose name starts
   with `_`).
 
 ## Acceptance
@@ -139,3 +138,5 @@ the templates and static files reference no outside URL. No browser tests.
   updated
 - 2026-10-12 sources and wiring (0016): first page also shows a source box (UI-004); plants fed by
   their wired sources (UI-010); sample weather is a dateless day read by `kiozesim_utils` (UI-011)
+- 2026-10-12 one app package (0017): the UI moves to `kiozesim_tool.ui` (UI-001, UI-002, UI-011,
+  UI-017); UI-016 retired, replaced by `kiozesim-tool ui` (APP-003)

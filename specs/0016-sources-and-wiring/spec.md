@@ -61,11 +61,11 @@ it has one, on that same axis. All boxes in one run share one time grid (constit
 |---|---|---|
 | `Source` base, `MissingInputError` | `kiozesim` (`kiozesim/sources/`) | the contract every box follows |
 | `Digester`, `ConstantSource` | `kiozesim` | pure models, no I/O |
-| `FileWeatherSource` | `kiozesim-utils` | reads files; weather fetching is not the library's job (0001) |
-| wiring, ordering, loop checks, error display | `kiozesim-tool`, `kiozesim-ui` | app work |
+| `FileWeatherSource` | `kiozesim-tool` (`kiozesim_tool.weather`; was `kiozesim-utils`, spec 0017) | reads files; weather fetching is not the library's job (0001) |
+| wiring, ordering, loop checks, error display | `kiozesim-tool` (command line and web UI) | app work |
 
-`kiozesim-utils` depends on `kiozesim`; both apps depend on `kiozesim-utils`; the library depends
-on neither.
+Since spec 0017 the web UI and `kiozesim-utils` are part of `kiozesim-tool`; the library does not
+depend on it.
 
 ## Interface
 
@@ -87,7 +87,7 @@ e.g. a gas engine on `fuel_kw: 1500`; real models (feed, weather) do not use it.
 `Digester` (0005) as a source with no inputs (its feed is a setting): output columns `fuel_kw`,
 `methane_nm3_per_h`.
 
-`kiozesim_utils.FileWeatherSource`: today's tool file weather (one dateless day, `HH:MM` UTC,
+`kiozesim_tool.weather.FileWeatherSource`: today's tool file weather (one dateless day, `HH:MM` UTC,
 tiled onto every date, averaged or interpolated to the requested step), as a `Source` with no inputs.
 
 ### Tool config
@@ -124,12 +124,12 @@ Library
 - **SRC-003** `TimeSeries.from_frame` MUST raise `MissingInputError` naming every required field the frame lacks.
 - **SRC-004** `Digester` MUST be a `Source` with no inputs whose output columns are `fuel_kw` and `methane_nm3_per_h`, with the values of 0005.
 - **SRC-005** `ConstantSource` MUST output one column per entry of `values`, holding that value on every step of `index`, and MUST reject an empty or non-finite `values`.
-- **SRC-006** The library MUST NOT contain wiring, ordering or running of several boxes, and MUST NOT import `kiozesim_utils` or the apps.
+- **SRC-006** The library MUST NOT contain wiring, ordering or running of several boxes, and MUST NOT import the app (`kiozesim_tool`).
 
 Weather package
-- **SRC-010** The workspace MUST have a fourth package `kiozesim-utils` (import `kiozesim_utils`) depending on `kiozesim` only; both apps MUST depend on it.
-- **SRC-011** `kiozesim_utils.FileWeatherSource` MUST be a `Source` with no inputs and MUST keep the file rules and resampling of SINK-041, SINK-042 and SINK-044.
-- **SRC-012** The apps MUST get weather only through `kiozesim_utils` sources; `kiozesim_tool.weather` MUST be removed.
+SRC-010 is retired: the shared package was folded into `kiozesim-tool` (APP-001, spec 0017).
+- **SRC-011** `kiozesim_tool.weather.FileWeatherSource` MUST be a `Source` with no inputs and MUST keep the file rules and resampling of SINK-041, SINK-042 and SINK-044.
+- **SRC-012** The apps MUST get weather only through the `kiozesim_tool.weather` sources; no other app module MAY define a weather source.
 
 Apps (both)
 - **SRC-020** Every plant, and every source that takes inputs, MUST be wired to one or more sources by name; a missing wire, an unknown name, a duplicate name across sources and plants, or a wiring loop MUST be rejected before simulating, with a message naming the box.
@@ -180,3 +180,5 @@ Web app
   first page one plant wired to one sample weather source (SRC-044)
 - 2026-10-12 approved
 - 2026-10-12 implemented (`kiozesim/sources/`, `kiozesim-utils`, tool and web app)
+- 2026-10-12 one app package (0017): `kiozesim-utils` folded into `kiozesim-tool`; SRC-010
+  retired, SRC-006, SRC-011, SRC-012 name `kiozesim_tool`

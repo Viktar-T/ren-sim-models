@@ -10,11 +10,9 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from kiozesim import Plant, Source
-from kiozesim.datasheet import Datasheet
-from kiozesim.plants import REGISTRY
+from kiozesim_tool.boxes import build_plant, build_source
 from kiozesim_tool.sink import SINKS, Sink
-from kiozesim_utils.sources import build_source
-from kiozesim_utils.wiring import Wires
+from kiozesim_tool.wiring import Wires
 
 
 class Config(BaseModel):
@@ -61,23 +59,14 @@ def load(path: str | Path) -> tuple[Config, Path]:
     return Config.model_validate(data), path.resolve().parent
 
 
+def _settings(entry: dict[str, Any]) -> dict[str, Any]:
+    """A box's own settings: the entry without `type` and the wiring `from` (read by wires_of)."""
+    return {k: v for k, v in entry.items() if k not in ("type", "from")}
+
+
 def build_plants(entries: list[dict[str, Any]]) -> list[Plant]:  # type: ignore[type-arg]
-    """`{type, name, <params>}`; a datasheet given by name is loaded from the bundled ones."""
-    plants: list[Plant] = []  # type: ignore[type-arg]
-    for entry in entries:
-        data = dict(entry)
-        data.pop("from", None)  # wiring, read by wires_of
-        plant_type = data.pop("type", None)
-        if plant_type not in REGISTRY:
-            raise ValueError(f"unknown plant type {plant_type!r}; known: {sorted(REGISTRY)}")
-        cls = REGISTRY[plant_type]
-        for key, info in cls.params_model.model_fields.items():
-            ann = info.annotation
-            is_sheet = isinstance(ann, type) and issubclass(ann, Datasheet)
-            if is_sheet and isinstance(data.get(key), str):
-                data[key] = ann.bundled(data[key])  # type: ignore[union-attr]
-        plants.append(cls(cls.params_model.model_validate(data)))
-    return plants
+    """`{type, name, from, <params>}`; a datasheet given by name is a bundled one."""
+    return [build_plant(str(e.get("type")), _settings(e)) for e in entries]
 
 
 def build_sinks(entries: list[dict[str, Any]]) -> list[Sink]:
@@ -93,11 +82,7 @@ def build_sinks(entries: list[dict[str, Any]]) -> list[Sink]:
 
 def build_sources(entries: list[dict[str, Any]], base: Path) -> list[Source]:  # type: ignore[type-arg]
     """`{type, name, [from], <settings>}`; relative paths resolve to the config's folder."""
-    sources: list[Source] = []  # type: ignore[type-arg]
-    for entry in entries:
-        data = {k: v for k, v in entry.items() if k not in ("type", "from")}
-        sources.append(build_source(str(entry.get("type")), data, base))
-    return sources
+    return [build_source(str(e.get("type")), _settings(e), base) for e in entries]
 
 
 def wires_of(entries: list[dict[str, Any]]) -> Wires:

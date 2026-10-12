@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from kiozesim import Source
 from kiozesim.plants.chp import CHPDatasheet, CHPParams, CHPPlant
 from kiozesim.sources import ConstantParams, ConstantSource
-from kiozesim_utils.wiring import WiringError, check, join, run
+from kiozesim_tool.wiring import WiringError, check, join, run
 
 HOURS = pd.date_range("2026-06-21", periods=24, freq="h", tz="UTC")
 SHEET = CHPDatasheet(

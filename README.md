@@ -21,7 +21,7 @@ uv run pytest && uv run python scripts/spec_check.py
 
 ## Layout
 
-One repository, four packages (a uv workspace, specs 0009 and 0016):
+One repository, two packages (a uv workspace, specs 0009 and 0017):
 
 ```
 pyproject.toml                    workspace: lists the packages + shared dev tools
@@ -36,9 +36,9 @@ kiozesim/                         the library
     sources/                      Source boxes: time series for plants (digester, constant)
   tests/golden/<plant>/<case>/    golden datasets; tests/harness.py runs them
   examples/                       runnable scripts, e.g. uv run python kiozesim/examples/pv.py
-kiozesim-tool/src/kiozesim_tool/  command-line tool
-kiozesim-ui/src/kiozesim_ui/      web app
-kiozesim-utils/src/kiozesim_utils/ shared by the apps: weather sources, wiring sources to plants
+kiozesim-tool/src/kiozesim_tool/  the app: `kiozesim-tool sink` and `kiozesim-tool ui`
+  boxes.py  wiring.py  weather.py plant/source types, wiring sources to plants, weather sources
+  ui/                             web app (`kiozesim-tool ui`)
 specs/                            specs + constitution, for all packages
 scripts/                          spec_check.py
 ```

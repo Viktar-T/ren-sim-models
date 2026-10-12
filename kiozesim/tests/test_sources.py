@@ -106,7 +106,7 @@ def test_constant_rejects(values):
 
 @pytest.mark.spec("SRC-006")
 def test_library_has_no_wiring_and_no_app_imports():
-    forbidden = ("kiozesim_utils", "kiozesim_tool", "kiozesim_ui")
+    forbidden = ("kiozesim_tool",)
     for py in LIB.rglob("*.py"):
         for node in ast.walk(ast.parse(py.read_text())):
             names = []

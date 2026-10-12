@@ -5,15 +5,19 @@ build-backend = "hatchling.build"
 [project]
 name = "kiozesim-tool"
 version = "0.1.0"
-description = "Command-line tool for the kiozesim simulation library."
+description = "Command-line tool and web UI for the kiozesim simulation library (specs 0011, 0010, 0017)."
 requires-python = ">=3.11"
 dependencies = [
     "kiozesim[pv,wind]",
-    "kiozesim-utils",
     "pyyaml>=6",
     "pydantic>=2.7",
     "pandas>=2.2",
     "paho-mqtt>=2",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "matplotlib>=3.9",
 ]
 
 [project.scripts]
@@ -21,7 +25,6 @@ kiozesim-tool = "kiozesim_tool.cli:main"
 
 [tool.uv.sources]
 kiozesim = { workspace = true }
-kiozesim-utils = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kiozesim_tool"]

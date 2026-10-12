@@ -30,9 +30,9 @@ Project-wide rules. A spec may not contradict these; change them here, deliberat
     one sub-folder per plant type. Plant packages hold code only.
 12. **Golden datasets.** Each plant is validated by golden cases in `kiozesim/tests/golden/<tech>/<case>/`
     from an independent reference, run by `kiozesim/tests/harness.py`.
-14. **Four packages, one repo.** The repository is a uv workspace with four sibling packages: the
-    library `kiozesim/`, the command-line tool `kiozesim-tool/`, the web app `kiozesim-ui/`
-    (spec 0009) and `kiozesim-utils/`, code both apps share that does not belong in the library
-    (spec 0016, e.g. weather sources). The library never depends on the other three. Package paths such as `kiozesim/datasheets/`
+14. **Two packages, one repo.** The repository is a uv workspace with two sibling packages: the
+    library `kiozesim/` and the app `kiozesim-tool/` (spec 0009), which holds the command line,
+    the web UI (`kiozesim_tool.ui`) and what they share that does not belong in the library
+    (spec 0017, e.g. weather sources, wiring). The library never depends on the app. Package paths such as `kiozesim/datasheets/`
     mean inside the package (`kiozesim/src/kiozesim/datasheets/`); paths such as `kiozesim/tests/`
     mean the folder in the repository.

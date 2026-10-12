@@ -14,9 +14,9 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 from starlette.datastructures import UploadFile
 
-from kiozesim_ui import form
-from kiozesim_ui.chart import power_svg
-from kiozesim_utils import wiring
+from kiozesim_tool import wiring
+from kiozesim_tool.ui import form
+from kiozesim_tool.ui.chart import power_svg
 
 HERE = Path(__file__).resolve().parent
 

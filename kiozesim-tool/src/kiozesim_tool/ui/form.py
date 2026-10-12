@@ -22,22 +22,20 @@ from pydantic.fields import FieldInfo
 
 from kiozesim import Plant, Source
 from kiozesim.datasheet import Datasheet
-from kiozesim.plants import REGISTRY
-from kiozesim.sources import ConstantSource
-from kiozesim.sources.digester import Digester
-from kiozesim_utils.weather import FileWeatherSource
+from kiozesim_tool import boxes
 
 Kind = Literal["plant", "source"]
 
-# Plant types whose spec is implemented (UI-005).
-OFFERED: tuple[str, ...] = ("pv", "hawt", "vawt", "chp")
+# Plant types whose spec is implemented (UI-005), from the shared list (APP-005).
+OFFERED: tuple[str, ...] = tuple(boxes.PLANTS)
 
 SAMPLE_WEATHER = Path(__file__).resolve().parent / "sample_weather.csv"
-# Source types on the page (SRC-040): class and the settings the page fixes (not shown as fields).
-SOURCE_TYPES: dict[str, tuple[type[Source], dict[str, Any]]] = {  # type: ignore[type-arg]
-    "sample weather": (FileWeatherSource, {"path": SAMPLE_WEATHER}),  # SRC-041
-    "constant": (ConstantSource, {}),
-    "digester": (Digester, {}),
+# Source types on the page (SRC-040): the shared source type it is (APP-005) and the settings the
+# page fixes (not shown as fields).
+SOURCE_TYPES: dict[str, tuple[str, dict[str, Any]]] = {
+    "sample weather": ("weather_file", {"path": SAMPLE_WEATHER}),  # SRC-041
+    "constant": ("constant", {}),
+    "digester": ("digester", {}),
 }
 SOURCES_OFFERED: tuple[str, ...] = tuple(SOURCE_TYPES)
 PREFIX: dict[str, str] = {"plant": "p", "source": "s"}
@@ -97,14 +95,10 @@ class Box:
         return entries
 
 
-def plant_class(plant_type: str) -> type[Plant]:  # type: ignore[type-arg]
-    return REGISTRY[plant_type]
-
-
 def params_model(box_type: str, kind: Kind = "plant") -> type[BaseModel]:
     if kind == "source":
-        return SOURCE_TYPES[box_type][0].params_model
-    return plant_class(box_type).params_model
+        return boxes.source_class(SOURCE_TYPES[box_type][0]).params_model
+    return boxes.plant_class(box_type).params_model
 
 
 def _describe(name: str, info: FieldInfo) -> Field:
@@ -138,11 +132,7 @@ def fields_of(box_type: str, kind: Kind = "plant") -> list[Field]:
 
 def sheet_model(plant_type: str) -> type[Datasheet] | None:
     """The datasheet model a plant type's params take, if any."""
-    for info in plant_class(plant_type).params_model.model_fields.values():
-        ann = info.annotation
-        if isinstance(ann, type) and issubclass(ann, Datasheet):
-            return ann
-    return None
+    return boxes.sheet_model(params_model(plant_type))
 
 
 def read_sheet(plant_type: str, text: str) -> Datasheet:
@@ -234,7 +224,7 @@ def read_boxes(form: Mapping[str, str], kind: Kind = "plant") -> list[Box]:
     offered = OFFERED if kind == "plant" else SOURCES_OFFERED
     prefix = PREFIX[kind]
     n = int(form.get(COUNT[kind], "0"))
-    boxes: list[Box] = []
+    found: list[Box] = []
     for i in range(n):
         posted = {
             k[len(f"{prefix}{i}.") :]: v for k, v in form.items() if k.startswith(f"{prefix}{i}.")
@@ -242,7 +232,7 @@ def read_boxes(form: Mapping[str, str], kind: Kind = "plant") -> list[Box]:
         box_type = posted.get("type", "")
         box_type = box_type if box_type in offered else offered[0]
         if posted.get("shown_type") != box_type:
-            box = new_box(box_type, {b.values["name"] for b in boxes}, kind)
+            box = new_box(box_type, {b.values["name"] for b in found}, kind)
             box.redrawn = True
         else:  # a changed type drops the import with the other fields (IMP-006)
             fields = fields_of(box_type, kind)
@@ -250,8 +240,8 @@ def read_boxes(form: Mapping[str, str], kind: Kind = "plant") -> list[Box]:
             if posted.get("imported"):
                 _carry(box, posted["imported"])
         box.wired = [v for k, v in sorted(posted.items()) if k.startswith("from.")]
-        boxes.append(box)
-    return boxes
+        found.append(box)
+    return found
 
 
 def _posted(f: Field, posted: Mapping[str, str]) -> str:
@@ -269,17 +259,11 @@ def _params(box: Box, seen: set[str]) -> BaseModel | None:
         raw = box.values.get(f.name, "").strip()
         if raw == "":
             continue  # pydantic reports a missing required field
-        ann = model.model_fields[f.name].annotation
         if f.datasheet and raw == UPLOADED:  # the box's imported datasheet (IMP-007)
             if box.sheet is None:
                 box.errors[f.name] = "no imported datasheet; import a file first"
             else:
                 data[f.name] = box.sheet
-        elif isinstance(ann, type) and issubclass(ann, Datasheet):
-            try:
-                data[f.name] = ann.bundled(raw)
-            except FileNotFoundError:
-                box.errors[f.name] = f"no bundled datasheet {raw!r}"
         elif f.kind == "yaml":  # builds plain values only, never Python objects (SRC-042)
             try:
                 data[f.name] = yaml.safe_load(raw)
@@ -287,6 +271,9 @@ def _params(box: Box, seen: set[str]) -> BaseModel | None:
                 box.errors[f.name] = f"not YAML: {e}"
         else:
             data[f.name] = raw
+    data, errors = boxes.resolve(model, data)  # a datasheet by name: the bundled one
+    for key, msg in errors.items():
+        box.errors.setdefault(key, msg)
     name = box.name
     if name and name in seen:
         box.errors["name"] = f"name {name!r} is already used by another box"
@@ -313,13 +300,13 @@ def build(
         params = _params(box, seen)
         if params is not None:
             try:
-                sources.append(SOURCE_TYPES[box.type][0](params))
+                sources.append(boxes.source_class(SOURCE_TYPES[box.type][0])(params))
             except ValueError as e:  # e.g. a weather file that does not read
                 box.errors[""] = str(e)
     for box in plant_boxes:
         params = _params(box, seen)
         if params is not None:
-            plants.append(plant_class(box.type)(params))
+            plants.append(boxes.plant_class(box.type)(params))
     if any(b.errors for b in [*plant_boxes, *source_boxes]):
         return None
     return plants, sources

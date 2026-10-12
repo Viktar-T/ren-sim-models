@@ -26,7 +26,7 @@ In:
 - The `Sink` interface (abstract class) in `kiozesim_tool`.
 - The playback loop ("player") that walks through the simulated output and hands each reading to
   the sinks at the right moment.
-- Weather as a source from `kiozesim_utils` (spec 0016); the one-day file source moved there.
+- Weather as a source from `kiozesim_tool.weather` (specs 0016, 0017).
 - One sink: `stdout` (prints JSON lines), useful on its own and for testing.
 - A YAML config file describing plants and sinks.
 
@@ -99,7 +99,7 @@ WeatherSource ─► Portfolio.simulate ─► DataFrame ─► Player (clock, s
 
 ### Weather source
 SINK-040, SINK-041, SINK-042 and SINK-044 are retired: the one-day file source and its rules moved
-to `kiozesim_utils.FileWeatherSource` (SRC-011): a CSV of times of day (`HH:MM`, UTC, no date)
+to `kiozesim_tool.weather.FileWeatherSource` (SRC-011): a CSV of times of day (`HH:MM`, UTC, no date)
 covering exactly one day on a regular step, repeated on every date, averaged to a coarser step or
 linearly interpolated to a finer one.
 - **SINK-043** Without `start:` in the config, playback MUST start at the current UTC time rounded
@@ -159,3 +159,5 @@ None.
   no extra engine)
 - 2026-10-12 sources and wiring (0016): `sources:` replaces `weather:` (SINK-021), plants fed by
   wired sources (SINK-020); SINK-040..042 and SINK-044 retired, moved to SRC-011 in `kiozesim_utils`
+- 2026-10-12 one app package (0017): the weather source lives in `kiozesim_tool.weather`; config
+  plant and source types come from the shared list in `kiozesim_tool.boxes` (APP-005)

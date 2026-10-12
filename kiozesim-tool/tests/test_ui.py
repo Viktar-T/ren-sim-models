@@ -6,7 +6,6 @@ from __future__ import annotations
 import base64
 import html as html_lib
 import re
-import tomllib
 from pathlib import Path
 
 import pandas as pd
@@ -14,17 +13,17 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-import kiozesim_ui
+import kiozesim_tool.ui
 from kiozesim.plants.hawt import HAWTDatasheet
 from kiozesim.plants.pv import PVDatasheet, PVInputs, PVParams, PVPlant
 from kiozesim.plants.vawt import VAWTDatasheet
-from kiozesim_ui import __main__ as cli
-from kiozesim_ui import form
-from kiozesim_ui.app import app
-from kiozesim_utils.weather import FileWeatherParams, FileWeatherSource
+from kiozesim_tool.boxes import SOURCES
+from kiozesim_tool.ui import form
+from kiozesim_tool.ui.app import app
+from kiozesim_tool.weather import FileWeatherParams, FileWeatherSource
 
-PKG = Path(kiozesim_ui.__file__).resolve().parent
-ROOT = PKG.parents[2]
+PKG = Path(kiozesim_tool.ui.__file__).resolve().parent
+ROOT = PKG.parents[3]
 SPECS = ROOT / "specs"
 # spec prefix -> plant type key in kiozesim.plants.REGISTRY
 PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "CHP": "chp", "BOIL": "boiler"}
@@ -426,17 +425,6 @@ def test_chart_is_server_svg(run_two: str) -> None:
 # --- server ------------------------------------------------------------------------------------
 
 
-@pytest.mark.spec("UI-016")
-def test_command_starts_server(monkeypatch: pytest.MonkeyPatch) -> None:
-    cfg = tomllib.loads((ROOT / "kiozesim-ui" / "pyproject.toml").read_text())
-    assert cfg["project"]["scripts"]["kiozesim-ui"] == "kiozesim_ui.__main__:main"
-    calls: list[tuple[object, str, int]] = []
-    monkeypatch.setattr(cli.uvicorn, "run", lambda a, host, port: calls.append((a, host, port)))
-    cli.main([])
-    cli.main(["--host", "0.0.0.0", "--port", "9000"])
-    assert calls == [(app, "127.0.0.1", 8000), (app, "0.0.0.0", 9000)]
-
-
 @pytest.mark.spec("UI-017")
 def test_only_public_library_api() -> None:
     for f in PKG.rglob("*.py"):
@@ -707,8 +695,9 @@ def test_source_types_and_from_tick_boxes() -> None:
 
 @pytest.mark.spec("SRC-041")
 def test_sample_weather_is_file_weather_source() -> None:
-    cls, fixed = form.SOURCE_TYPES["sample weather"]
-    assert cls is FileWeatherSource and fixed["path"] == PKG / "sample_weather.csv"
+    source_type, fixed = form.SOURCE_TYPES["sample weather"]
+    assert SOURCES[source_type] is FileWeatherSource
+    assert fixed["path"] == PKG / "sample_weather.csv"
     assert "s0.path" not in client.get("/").text  # fixed by the page, not a field
 
 
