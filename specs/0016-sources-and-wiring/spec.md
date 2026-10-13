@@ -139,13 +139,13 @@ Apps (both)
 - **SRC-023** The gas engine (`chp`) MUST be usable in both apps, wired to a digester or a constant source.
 
 Tool
-- **SRC-030** The config MUST have `sources:` (each with `type`, `name`, its settings and, if it takes inputs, `from`) and every `plants:` entry MUST have `from` (a source name or a list of names); source types MUST be `weather_file`, `constant` and `digester`. The `weather:` key MUST be rejected with a message pointing to `sources:`.
+- **SRC-030** The config MUST have `sources:` (each with `type`, `name`, its settings and, if it takes inputs, `from`) and every `plants:` entry MUST have `from` (a source name or a list of names); source types MUST be `weather_file`, `open_meteo` (WX-030), `constant` and `digester`. The `weather:` key MUST be rejected with a message pointing to `sources:`.
 - **SRC-031** `kiozesim-tool/examples/sink.yaml` MUST wire its weather plants to a `weather_file` source and MUST also contain a digester → `chp` chain, and MUST run at `speed: 0`.
 
 Web app
 - **SRC-043** Source boxes MUST sit in a column to the right of the plant boxes and MUST behave like plant boxes (UI-004, UI-005, UI-019): a type selector with **Apply**, a **Remove** button (not on the last source box), and a **+** button below the last source box that adds one, keeping everything typed in all boxes.
 - **SRC-044** The first page MUST show one plant box and one `sample weather` source box, with that plant wired to it; boxes added later start unwired.
-- **SRC-040** The page MUST offer source boxes of types `sample weather`, `constant` and `digester`, and a **from** list of tick boxes on each plant box and each source box with inputs, one per source on the page.
+- **SRC-040** The page MUST offer source boxes of types `sample weather`, `online weather` (WX-040), `constant` and `digester`, and a **from** list of tick boxes on each plant box and each source box with inputs, one per source on the page.
 - **SRC-042** A digester box MUST take its substrates as YAML text (a list of `Substrate` field mappings) and MUST show a substrate error (bad YAML, a field out of range, a bad formula) on that box.
 - **SRC-041** `sample weather` MUST be a `FileWeatherSource` reading the UI's sample day.
 
@@ -182,3 +182,5 @@ Web app
 - 2026-10-12 implemented (`kiozesim/sources/`, `kiozesim-utils`, tool and web app)
 - 2026-10-12 one app package (0017): `kiozesim-utils` folded into `kiozesim-tool`; SRC-010
   retired, SRC-006, SRC-011, SRC-012 name `kiozesim_tool`
+- 2026-10-13 real weather (0018): source type `open_meteo` (SRC-030) and page box `online weather`
+  (SRC-040); `weather_file` also reads dated files (WX-020)

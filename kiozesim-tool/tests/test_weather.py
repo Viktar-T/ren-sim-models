@@ -47,7 +47,8 @@ def test_is_a_source_without_inputs(tmp_path: Path):
 @pytest.mark.parametrize(
     "rows",
     [
-        "time,x\n2026-06-21T00:00:00Z,1\n2026-06-21T01:00:00Z,2\n",  # dates
+        "time,x\n00:00,1\n2026-06-21T01:00,2\n",  # both shapes mixed
+        "time,x\n00:00,1\n01:00:30,2\n",  # neither shape
         "time,x\n00:00,1\n01:00,2\n",  # not a whole day
         "time,x\n" + "".join(f"{h:02d}:00,1\n" for h in range(24) if h != 5),  # gap
     ],

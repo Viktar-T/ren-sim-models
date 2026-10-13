@@ -84,7 +84,13 @@
     </div>
   </div>
 </div>
-<div class="buttons">
+<div class="buttons period">
+  <label for="run_from">from</label>
+  <input id="run_from" name="run_from" type="date" value="{{ period.start }}">
+  {% if period.errors.get("run_from") %}<span class="error" data-for="run_from">{{ period.errors["run_from"] }}</span>{% endif %}
+  <label for="run_days">days</label>
+  <input id="run_days" name="run_days" type="number" min="1" max="{{ max_days }}" step="1" value="{{ period.days }}">
+  {% if period.errors.get("run_days") %}<span class="error" data-for="run_days">{{ period.errors["run_days"] }}</span>{% endif %}
   <button type="submit" name="action" value="run" class="run">Run</button>
 </div>
 </form>

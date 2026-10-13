@@ -90,7 +90,9 @@ def run_sink(
                     chunk = simulate_chunk(plants, sources, wires, start, chunk_end, step)
             except KeyboardInterrupt:  # SINK-014: sinks are closed by the ExitStack
                 pass
-    except OSError as e:  # a sink could not connect or lost it for good (MQTT-011, MQTT-032)
+    # a sink could not connect or lost it for good (MQTT-011, MQTT-032), or a later chunk could not
+    # be simulated, e.g. no weather past the forecast (WX-032); the sinks are closed by now
+    except (ValueError, TypeError, OSError) as e:
         print(f"kiozesim-tool sink: error: {e}", file=sys.stderr)
         return 2
     return 0

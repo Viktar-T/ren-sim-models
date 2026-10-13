@@ -1,0 +1,47 @@
+# Real weather from Open-Meteo (spec 0018): the plants of sink.yaml in Warsaw, 1-8 June 2025.
+# Try it: uv run kiozesim-tool sink 1h --config kiozesim-tool/examples/real_weather.yaml
+# Needs the internet on the first run; later runs read the cache in ~/.cache/kiozesim-tool/.
+speed: 0                  # no waiting: the whole week at once
+start: 2025-06-01T00:00
+end: 2025-06-08T00:00
+sources:
+  - type: open_meteo
+    name: weather
+    latitude_deg: 52.23
+    longitude_deg: 21.01
+  - type: digester            # steady feed -> methane for the gas engine (spec 0005)
+    name: farm
+    substrates:
+      - name: maize silage
+        fresh_t_per_day: 40
+        dry_matter_frac: 0.33
+        organic_frac: 0.95
+        formula: C6H10O5        # plant fibre and starch
+        biodegradability: 0.8
+plants:
+  - type: pv
+    name: roof
+    from: weather
+    datasheet: jinko_solar_jkm440n_54hl4r_b
+    latitude_deg: 52.23
+    longitude_deg: 21.01
+    tilt_deg: 35
+    azimuth_deg: 180
+    n_modules: 10
+    inverter_ac_kw: 4.0
+  - type: hawt
+    name: turbine
+    from: weather
+    datasheet: E-82/2300    # a turbine from windpowerlib's library, by its type code
+    hub_height_m: 108
+  - type: vawt
+    name: spire
+    from: weather
+    datasheet: mariah_power_windspire   # measured power curve (NREL test report)
+    hub_height_m: 10
+  - type: chp
+    name: engine
+    from: farm
+    datasheet: tedom_flexi_530_biogas   # 528 kW biogas engine
+sinks:
+  - type: stdout

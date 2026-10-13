@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
+import pandas as pd
 import yaml
 from pydantic import BaseModel, ValidationError
 from pydantic.fields import FieldInfo
@@ -34,6 +35,7 @@ SAMPLE_WEATHER = Path(__file__).resolve().parent / "sample_weather.csv"
 # page fixes (not shown as fields).
 SOURCE_TYPES: dict[str, tuple[str, dict[str, Any]]] = {
     "sample weather": ("weather_file", {"path": SAMPLE_WEATHER}),  # SRC-041
+    "online weather": ("open_meteo", {}),  # WX-040
     "constant": ("constant", {}),
     "digester": ("digester", {}),
 }
@@ -310,3 +312,40 @@ def build(
     if any(b.errors for b in [*plant_boxes, *source_boxes]):
         return None
     return plants, sources
+
+
+# The run period beside the Run button (WX-041).
+DEFAULT_FROM = "2026-06-21"
+MAX_DAYS = 31
+
+
+@dataclass
+class Period:
+    """The typed-in run period: a first date and a number of days, hourly, UTC."""
+
+    start: str = DEFAULT_FROM
+    days: str = "1"
+    errors: dict[str, str] = field(default_factory=dict)  # by field: "run_from", "run_days"
+
+    @classmethod
+    def read(cls, form: Mapping[str, str]) -> Period:
+        return cls(form.get("run_from", DEFAULT_FROM), form.get("run_days", "1"))
+
+    def index(self) -> pd.DatetimeIndex | None:
+        """The hourly run index, or None after writing every error into `errors`."""
+        start = days = None
+        try:
+            start = pd.Timestamp(self.start.strip())
+            if start != start.normalize() or start.tz is not None:
+                raise ValueError
+        except ValueError:
+            self.errors["run_from"] = "a date like 2026-06-21"
+        try:
+            days = int(self.days.strip())
+            if not 1 <= days <= MAX_DAYS:
+                raise ValueError
+        except ValueError:
+            self.errors["run_days"] = f"a whole number from 1 to {MAX_DAYS}"
+        if start is None or days is None or self.errors:
+            return None
+        return pd.date_range(start.tz_localize("UTC"), periods=24 * days, freq="h")

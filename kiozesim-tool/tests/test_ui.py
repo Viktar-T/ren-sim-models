@@ -686,9 +686,10 @@ def test_first_page_plant_wired_to_sample_weather() -> None:
 
 
 @pytest.mark.spec("SRC-040")
+@pytest.mark.spec("WX-040")
 def test_source_types_and_from_tick_boxes() -> None:
     page = post("apply", pv("roof"), sources=(WEATHER, FARM))
-    assert options(page, "s0.type") == ["sample weather", "constant", "digester"]
+    assert options(page, "s0.type") == ["sample weather", "online weather", "constant", "digester"]
     assert "p0.from.0" in page and "p0.from.1" in page  # one tick box per source
     assert "s1.from.0" in page and "s1.from.1" not in page  # a source lists the others only
 

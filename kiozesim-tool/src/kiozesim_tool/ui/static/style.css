@@ -34,3 +34,5 @@ button { min-width: 75px; padding: 2px 8px; }
   max-width: 1400px;
 }
 .from label { margin-right: 8px; white-space: nowrap; }
+.period { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.period input[type="number"] { width: 5em; }

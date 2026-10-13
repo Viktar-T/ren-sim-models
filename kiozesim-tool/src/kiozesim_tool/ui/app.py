@@ -33,28 +33,24 @@ class Result:
     chart: Markup
 
 
-# The sample weather is one dateless day; the page runs it on this date (UI-011).
-RUN_DAY = pd.date_range("2026-06-21", periods=24, freq="h", tz="UTC")
-
-
 def simulate(
-    plant_boxes: list[form.Box], source_boxes: list[form.Box]
+    plant_boxes: list[form.Box], source_boxes: list[form.Box], period: form.Period
 ) -> tuple[Result | None, str]:
     """Run all plants as one portfolio, fed by their wired sources. Returns (result, page error)."""
+    index = period.index()  # WX-041; the sample weather repeats its day on each date (UI-011)
     built = form.build(plant_boxes, source_boxes)
-    if built is None:
+    if built is None or index is None:
         return None, ""
     plants, sources = built
     wires = {b.name: b.wired for b in [*plant_boxes, *source_boxes]}
     try:
-        power = wiring.run(sources, plants, wires, RUN_DAY)
-    except wiring.WiringError as e:  # shown on the box it belongs to (SRC-022)
+        power = wiring.run(sources, plants, wires, index)
+    except (ValueError, TypeError, ImportError) as e:
+        # wiring and weather errors are shown on the box they belong to (SRC-022, WX-042)
         for b in [*plant_boxes, *source_boxes]:
-            if b.name == e.box:
+            if b.name == getattr(e, "box", None):
                 b.errors[""] = str(e)
                 return None, ""
-        return None, str(e)
-    except (ValueError, TypeError, ImportError) as e:
         return None, str(e)
     step_h = (power.index[1] - power.index[0]) / pd.Timedelta(hours=1)
     energy = {str(c): float(power[c].sum() * step_h) for c in power.columns}
@@ -65,6 +61,7 @@ def page(  # type: ignore[no-untyped-def]
     request: Request,
     plants: list[form.Box],
     sources: list[form.Box],
+    period: form.Period,
     result: Result | None = None,
     error: str = "",
 ):
@@ -77,6 +74,8 @@ def page(  # type: ignore[no-untyped-def]
             "offered": form.OFFERED,
             "sources_offered": form.SOURCES_OFFERED,
             "source_names": [b.name for b in sources if b.name],
+            "period": period,
+            "max_days": form.MAX_DAYS,
             "result": result,
             "error": error,
             "css_version": CSS_VERSION,
@@ -86,7 +85,7 @@ def page(  # type: ignore[no-untyped-def]
 
 @app.get("/", response_class=HTMLResponse)
 def first_page(request: Request):  # type: ignore[no-untyped-def]
-    return page(request, *form.first_boxes())
+    return page(request, *form.first_boxes(), form.Period())
 
 
 def _index(action: str, prefix: str, n: int) -> int | None:
@@ -100,6 +99,7 @@ async def submit(request: Request):  # type: ignore[no-untyped-def]
     posted = {k: v for k, v in data.items() if isinstance(v, str)}
     plants = form.read_boxes(posted, "plant")
     sources = form.read_boxes(posted, "source")
+    period = form.Period.read(posted)  # kept across every button (WX-041)
     taken = {b.values["name"] for b in [*plants, *sources]}
     action = posted.get("action", "")
     if action == "add":
@@ -123,6 +123,6 @@ async def submit(request: Request):  # type: ignore[no-untyped-def]
                 content = await upload.read(form.MAX_IMPORT_BYTES + 1)  # enough to see "too big"
             form.import_into(plants[i], content)
     elif action == "run" and plants and not any(b.redrawn for b in [*plants, *sources]):
-        result, error = simulate(plants, sources)
-        return page(request, plants, sources, result, error)
-    return page(request, plants, sources)
+        result, error = simulate(plants, sources, period)
+        return page(request, plants, sources, period, result, error)
+    return page(request, plants, sources, period)
