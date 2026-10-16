@@ -11,7 +11,11 @@ from kiozesim.plants import REGISTRY
 from kiozesim.plants.pv import PVDatasheet
 
 PKG = Path(kiozesim.__file__).parent
-DATASHEETS = [cls.params_model.model_fields["datasheet"].annotation for cls in REGISTRY.values()]
+DATASHEETS = [
+    cls.params_model.model_fields["datasheet"].annotation
+    for cls in REGISTRY.values()
+    if "datasheet" in cls.params_model.model_fields
+]
 
 
 def _bundled():

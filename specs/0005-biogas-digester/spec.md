@@ -42,8 +42,9 @@ A **digester** is a heated, airtight tank, like a stomach. It is fed organic mat
 maize silage, food waste), and bacteria digest it, giving off **biogas**: mostly **methane** (CH₄,
 the part that burns, typically 50–60 %) and **carbon dioxide** (CO₂, which does not burn).
 
-The digester is a **fuel source**, not a plant (constitution 2): it makes gas, not electricity, so
-it does not go into a `Portfolio`. Its output is the gas engine's input.
+The digester is a **plant** (since spec 0019; it was a source before): a physical installation at
+the front of a chain. It makes gas, not electricity, so its `power_kw` is 0. Its `fuel_kw` flows to
+the combustion plant behind it (gas engine or boiler, 0015).
 
 ### Substrates
 A **substrate** is one kind of feed. Its amount is given in **fresh mass**, tonnes per day, as
@@ -141,12 +142,13 @@ to react), so both are left to a later spec.
 | `name` | – | required | non-empty | digester name |
 | `substrates` | – | required | ≥ 1, unique names | what it can be fed |
 
-`Digester` is a `Source` (0016): `simulate(index, inputs=None)` takes the time axis to fill
-(time-grid rules, CORE-002) and needs no input columns. It returns a DataFrame on `index`:
+`DigesterPlant` is a plant without input (CORE-004): `simulate()` takes nothing and returns a
+`DigesterOutput` of single values (the same on every step; a chain spreads them over its time axis):
 
-| Column | Unit | Meaning |
+| Field | Unit | Meaning |
 |---|---|---|
-| `fuel_kw` | kW | methane energy made, average over the period; the gas engine's input |
+| `power_kw` | kW | always 0: it makes no electricity |
+| `fuel_kw` | kW | methane energy made, average over the period; the combustion plant's input |
 | `methane_nm3_per_h` | Nm³/h | methane volume made, average over the period |
 
 ## Requirements
@@ -154,13 +156,13 @@ to react), so both are left to a later spec.
 Parameters and inputs
 - **BIO-001** `Substrate` and `DigesterParams` MUST have exactly the fields, units, defaults and allowed ranges of their tables and MUST reject any value outside them at construction; `substrates` MUST be non-empty with unique names.
 - **BIO-003** `formula` MUST accept the elements C, H, O, N and S, each at most once, each followed by an optional positive count (whole or decimal, missing means 1), with C and H required; anything else, or a formula giving no methane by Buswell–Boyle, MUST be rejected with an error naming the substrate.
-- **BIO-004** `Digester.simulate(index)` MUST need no input columns and MUST reject an index that breaks the CORE-002 index rules.
+- **BIO-004** `DigesterPlant.simulate()` MUST take no input and MUST reject being given one (CORE-004).
 
 Model
-- **BIO-002** `Digester` MUST be a `Source` (constitution 2, 0016): `simulate(index)` returns a DataFrame with exactly the columns `fuel_kw` and `methane_nm3_per_h` on exactly `index`; it is not a `Plant` and not in `REGISTRY`.
+- **BIO-002** `DigesterPlant` MUST be a plant without input (0019 CHAIN-020), registered in `REGISTRY` as `digester`, returning a `DigesterOutput` with exactly the fields `power_kw` (0), `fuel_kw` and `methane_nm3_per_h`.
 - **BIO-005** The methane yield of a formula MUST be computed by the Buswell–Boyle equation, molar masses and 22.414 l/mol given in Domain notes.
 - **BIO-006** `methane_nm3_per_h` and `fuel_kw` MUST follow the equations under "From feed to fuel" and MUST be the same on every step.
-- **BIO-007** The digester's output table MUST be usable unchanged as the gas engine's input (`CHPInputs.from_frame`, 0015).
+- **BIO-007** In a chain, the digester's `fuel_kw` MUST be usable unchanged as the combustion plant's input (`CombustionInputs`, 0015; `Chain`, 0019).
 - **BIO-008** A digester whose substrates all have `fresh_t_per_day` 0 MUST give 0 `fuel_kw` and 0 `methane_nm3_per_h`.
 - **BIO-009** The digester MUST need no package beyond the library's core dependencies.
 
@@ -198,3 +200,6 @@ Validation
   `simulate(index)` takes only the time axis (BIO-002, BIO-004, BIO-006, BIO-008); output constant
 - 2026-10-12 digester is a `Source` (0016): output is a DataFrame, `DigesterOutput` removed (BIO-002,
   BIO-004, BIO-007)
+- 2026-10-15 plant chains (0019): the digester is a plant again, `DigesterPlant` (`digester`),
+  output `DigesterOutput` of single values with `power_kw` 0; moves to `kiozesim/plants/digester/`
+  (BIO-002, BIO-004, BIO-007)

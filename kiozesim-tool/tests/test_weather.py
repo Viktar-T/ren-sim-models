@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from kiozesim import Source
 from kiozesim_tool.boxes import build_source
+from kiozesim_tool.sources import Source
 from kiozesim_tool.weather import FileWeatherParams, FileWeatherSource
 
 ROOT = Path(__file__).resolve().parents[2]

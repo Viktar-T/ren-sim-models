@@ -1,4 +1,4 @@
-"""Biogas digester (fuel source), spec 0005."""
+"""Biogas digester (a plant without input), specs 0005, 0019."""
 
 import subprocess
 import sys
@@ -8,16 +8,11 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
+from kiozesim import Chain
 from kiozesim.plants import REGISTRY
 from kiozesim.plants.base import Plant
-from kiozesim.plants.chp import CHPDatasheet, CHPInputs, CHPParams, CHPPlant
-from kiozesim.sources import Source
-from kiozesim.sources.digester import (
-    Digester,
-    DigesterParams,
-    Substrate,
-)
-from kiozesim.timegrid import TimeGridError
+from kiozesim.plants.combustion import CombustionDatasheet, CombustionParams, CombustionPlant
+from kiozesim.plants.digester import DigesterOutput, DigesterParams, DigesterPlant, Substrate
 
 # The spec's worked example: 40 t/day, DM 0.33, organic 0.95, C6H10O5, biodegradability 0.8.
 SILAGE = {
@@ -39,8 +34,8 @@ SLURRY = {
 DAYS = pd.date_range("2026-01-01", periods=10, freq="D", tz="UTC")
 
 
-def digester(*subs: dict) -> Digester:
-    return Digester(
+def digester(*subs: dict) -> DigesterPlant:
+    return DigesterPlant(
         DigesterParams(name="d", substrates=tuple(Substrate(**s) for s in subs or (SILAGE,)))
     )
 
@@ -119,20 +114,19 @@ def test_formula_rejected_naming_substrate(formula):
 
 
 @pytest.mark.spec("BIO-004")
-def test_simulate_takes_a_valid_time_axis():
-    with pytest.raises(TimeGridError):
-        digester().simulate(pd.date_range("2026-01-01", periods=10, freq="D"))  # not UTC
-    with pytest.raises(TimeGridError):
-        digester().simulate(DAYS[[0, 1, 3]])  # irregular
+def test_simulate_takes_no_input():
+    assert DigesterPlant.inputs_model is None
+    with pytest.raises(TypeError):
+        digester().simulate(object())  # type: ignore[arg-type]
 
 
 @pytest.mark.spec("BIO-002")
-def test_is_fuel_source_not_plant():
-    out = digester().simulate(DAYS)
-    assert isinstance(out, pd.DataFrame) and out.index.equals(DAYS)
-    assert list(out.columns) == ["fuel_kw", "methane_nm3_per_h"]
-    assert issubclass(Digester, Source) and not issubclass(Digester, Plant)
-    assert Digester not in REGISTRY.values()
+def test_is_plant_without_input():
+    out = digester().simulate()
+    assert isinstance(out, DigesterOutput)
+    assert list(dict(out)) == ["power_kw", "fuel_kw", "methane_nm3_per_h"]
+    assert out.power_kw == 0.0
+    assert issubclass(DigesterPlant, Plant) and REGISTRY["digester"] is DigesterPlant
 
 
 @pytest.mark.spec("BIO-005")
@@ -149,7 +143,7 @@ def test_buswell_boyle():
 
 @pytest.mark.spec("BIO-006")
 def test_feed_to_fuel_two_substrates_constant():
-    out = digester(SILAGE, SLURRY).simulate(DAYS)
+    out = digester(SILAGE, SLURRY).simulate().to_frame(DAYS)
     nm3_day = sum(
         s["fresh_t_per_day"]
         * 1000
@@ -164,25 +158,24 @@ def test_feed_to_fuel_two_substrates_constant():
 
 
 @pytest.mark.spec("BIO-007")
-def test_output_feeds_gas_engine_unchanged():
-    out = digester().simulate(DAYS)
-    sheet = CHPDatasheet(
+def test_output_feeds_combustion_plant_unchanged():
+    sheet = CombustionDatasheet(
         manufacturer="m",
         model="x",
         rated_electrical_kw=500,
         electrical_efficiency=0.4,
         thermal_efficiency=0.45,
     )
-    engine = CHPPlant(CHPParams(name="e", datasheet=sheet, availability=1))
-    res = engine.simulate(CHPInputs.from_frame(out))
-    np.testing.assert_allclose(res.power_kw, 500.0)  # 1728 kW fuel > 1250 kW full load
+    engine = CombustionPlant(CombustionParams(name="e", datasheet=sheet))
+    res = Chain([digester(), engine]).run(DAYS)
+    np.testing.assert_allclose(res.outputs["e"]["power_kw"], 500.0)  # 1728 kW > 1250 kW full load
 
 
 @pytest.mark.spec("BIO-008")
 def test_no_feed_no_gas():
     empty = ({**SILAGE, "fresh_t_per_day": 0}, {**SLURRY, "fresh_t_per_day": 0})
-    out = digester(*empty).simulate(DAYS)
-    assert (out.fuel_kw == 0).all() and (out.methane_nm3_per_h == 0).all()
+    out = digester(*empty).simulate()
+    assert out.fuel_kw == 0 and out.methane_nm3_per_h == 0
 
 
 @pytest.mark.spec("BIO-009")
@@ -190,12 +183,10 @@ def test_no_extra_dependency():
     code = (
         "import sys, pandas as pd\n"
         "sys.modules['pvlib'] = None; sys.modules['windpowerlib'] = None\n"
-        "from kiozesim.sources.digester import (\n"
-        "    Digester, DigesterParams, Substrate)\n"
+        "from kiozesim.plants.digester import DigesterParams, DigesterPlant, Substrate\n"
         "s = Substrate(name='a', fresh_t_per_day=1, dry_matter_frac=0.3, organic_frac=0.9,"
         " formula='C6H10O5', biodegradability=0.8)\n"
-        "i = pd.date_range('2026-01-01', periods=2, freq='D', tz='UTC')\n"
-        "Digester(DigesterParams(name='d', substrates=(s,))).simulate(i)\n"
+        "DigesterPlant(DigesterParams(name='d', substrates=(s,))).simulate()\n"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
 
@@ -211,16 +202,15 @@ def test_textbook_yields(formula, textbook):
 
 @pytest.mark.spec("BIO-011")
 def test_worked_example():
-    out = digester().simulate(DAYS)
+    out = digester().simulate()
     np.testing.assert_allclose(out.fuel_kw, 1728.3, rtol=0.001)
 
 
 def test_digester_into_500kw_engine_for_a_year():
     """Spec 0005 Acceptance: a year of daily steps, digester -> 500 kW engine."""
     year = pd.date_range("2026-01-01", periods=365, freq="D", tz="UTC")
-    gas = digester().simulate(year)
-    sheet = CHPDatasheet.bundled("tedom_flexi_530_biogas")
-    engine = CHPPlant(CHPParams(name="e", datasheet=sheet, availability=0.9))
-    power = engine.simulate(CHPInputs.from_frame(gas)).power_kw
+    sheet = CombustionDatasheet.bundled("tedom_flexi_530_biogas")
+    engine = CombustionPlant(CombustionParams(name="e", datasheet=sheet, availability=0.9))
+    power = Chain([digester(), engine]).run(year).outputs["e"]["power_kw"]
     # 1728 kW fuel > 1313 kW full load: the engine runs full whenever available
     np.testing.assert_allclose(power.sum() * 24 / 1000, 528 * 0.9 * 8760 / 1000, rtol=1e-9)

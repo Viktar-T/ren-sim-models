@@ -36,6 +36,8 @@ def _read_csv(path: Path) -> pd.DataFrame:
 def build_plant(case: GoldenCase, registry: dict[str, type[Plant]] | None = None) -> Plant:  # type: ignore[type-arg]
     cls = (registry or REGISTRY)[case.plant]
     spec = yaml.safe_load((case.path / "case.yaml").read_text())
+    if "datasheet" not in spec:  # a plant described by its settings only (e.g. heat_store)
+        return cls(cls.params_model(**spec["params"]))
     ds_name = spec["datasheet"]
     ds_path = case.path / ds_name
     ds_model = cls.params_model.model_fields["datasheet"].annotation
@@ -47,12 +49,16 @@ def build_plant(case: GoldenCase, registry: dict[str, type[Plant]] | None = None
 
 
 def run_case(case: GoldenCase, registry: dict[str, type[Plant]] | None = None) -> None:  # type: ignore[type-arg]
-    """Simulate the case and assert it matches expected.csv within tolerance."""
+    """Simulate the case and assert it matches expected.csv within tolerance.
+
+    `column:` in case.yaml names the output checked (default `power_kw`).
+    """
     spec = yaml.safe_load((case.path / "case.yaml").read_text())
     spec_inputs = spec.get("inputs", {})
+    column = spec.get("column", "power_kw")
     plant = build_plant(case, registry)
     if plant.inputs_model is None:  # steady-state plant: scalar expectation in case.yaml
-        actual = plant.simulate().power_kw
+        actual = getattr(plant.simulate(), column)
         np.testing.assert_allclose(
             actual,
             spec["expected_power_kw"],
@@ -61,7 +67,7 @@ def run_case(case: GoldenCase, registry: dict[str, type[Plant]] | None = None) -
         )
         return
     frame = _read_csv(case.path / "inputs.csv")
-    actual = plant.simulate(plant.inputs_model.from_frame(frame, **spec_inputs)).power_kw
+    actual = getattr(plant.simulate(plant.inputs_model.from_frame(frame, **spec_inputs)), column)
     if "expected_energy_kwh" in spec:  # total-energy case (e.g. annual yield): no expected.csv
         step_h = (frame.index[1] - frame.index[0]) / pd.Timedelta(hours=1)
         np.testing.assert_allclose(
@@ -72,7 +78,7 @@ def run_case(case: GoldenCase, registry: dict[str, type[Plant]] | None = None) -
             err_msg=f"golden case {case.id} energy (source: {spec.get('source', 'n/a')})",
         )
         return
-    expected = _read_csv(case.path / "expected.csv")["power_kw"]
+    expected = _read_csv(case.path / "expected.csv")[column]
     np.testing.assert_allclose(
         np.asarray(actual),
         expected.to_numpy(),

@@ -16,7 +16,7 @@ from typing import Any
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
 
-from kiozesim import Source
+from kiozesim_tool.sources import Source
 
 DAY = pd.Timedelta(days=1)
 HOUR = pd.Timedelta(hours=1)

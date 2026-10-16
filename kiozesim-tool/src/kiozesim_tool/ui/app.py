@@ -14,9 +14,10 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 from starlette.datastructures import UploadFile
 
-from kiozesim_tool import wiring
+from kiozesim import SizingResult
+from kiozesim_tool import sizing, wiring
 from kiozesim_tool.ui import form
-from kiozesim_tool.ui.chart import power_svg
+from kiozesim_tool.ui.chart import output_svgs, power_svg
 
 HERE = Path(__file__).resolve().parent
 
@@ -30,7 +31,8 @@ CSS_VERSION = hashlib.sha256((HERE / "static" / "style.css").read_bytes()).hexdi
 @dataclass(frozen=True)
 class Result:
     energy_kwh: dict[str, float]  # per plant plus "total"
-    chart: Markup
+    chart: Markup  # power (UI-015)
+    output_charts: list[tuple[str, Markup]]  # (field, chart) for every other output (PLOT-001)
 
 
 def simulate(
@@ -44,7 +46,7 @@ def simulate(
     plants, sources = built
     wires = {b.name: b.wired for b in [*plant_boxes, *source_boxes]}
     try:
-        power = wiring.run(sources, plants, wires, index)
+        run = wiring.run(sources, plants, wires, index)
     except (ValueError, TypeError, ImportError) as e:
         # wiring and weather errors are shown on the box they belong to (SRC-022, WX-042)
         for b in [*plant_boxes, *source_boxes]:
@@ -52,9 +54,62 @@ def simulate(
                 b.errors[""] = str(e)
                 return None, ""
         return None, str(e)
+    power = run.power
     step_h = (power.index[1] - power.index[0]) / pd.Timedelta(hours=1)
     energy = {str(c): float(power[c].sum() * step_h) for c in power.columns}
-    return Result(energy, Markup(power_svg(power))), ""
+    # per plant in the order of the boxes (PLOT-002)
+    outputs = {p.name: run.outputs[p.name] for p in plants}
+    charts = [(field, Markup(svg)) for field, svg in output_svgs(outputs)]
+    return Result(energy, Markup(power_svg(power)), charts), ""
+
+
+@dataclass(frozen=True)
+class SizingRow:
+    plant: str
+    wanted: str
+    given: str
+    short: str
+    needs: str
+    feed: str
+
+
+def size(
+    plant_boxes: list[form.Box], source_boxes: list[form.Box], request: form.Sizing
+) -> list[SizingRow] | None:
+    """Size the chain ending at the chosen plant (CHAIN-043); errors go into boxes or request."""
+    wanted = None
+    try:
+        wanted = sizing.parse_want([request.want])
+    except ValueError as e:
+        request.errors["size_want"] = str(e)
+    built = form.build(plant_boxes, source_boxes)
+    if built is None or wanted is None:
+        return None
+    plants, sources = built
+    wires = {b.name: b.wired for b in [*plant_boxes, *source_boxes]}
+    try:
+        res: SizingResult = sizing.size(plants, sources, wires, request.plant, wanted)
+    except ValueError as e:
+        for b in [*plant_boxes, *source_boxes]:
+            if b.name == getattr(e, "box", None):
+                b.errors[""] = str(e)
+                return None
+        request.errors["size_want"] = str(e)
+        return None
+    rows = [
+        SizingRow(
+            s.plant,
+            sizing.kw(s.wanted),
+            sizing.kw(s.given),
+            sizing.kw(s.shortfall) if s.shortfall else "",
+            sizing.kw(s.needs) if s.needs else "",
+            sizing.feed(s.feed_t_per_day),
+        )
+        for s in res.steps
+    ]
+    if res.stopped_at is not None:
+        rows.append(SizingRow(res.stopped_at, "", "", "", "", res.reason))
+    return rows
 
 
 def page(  # type: ignore[no-untyped-def]
@@ -64,6 +119,8 @@ def page(  # type: ignore[no-untyped-def]
     period: form.Period,
     result: Result | None = None,
     error: str = "",
+    sizing_request: form.Sizing | None = None,
+    sizing_rows: list[SizingRow] | None = None,
 ):
     return templates.TemplateResponse(
         request,
@@ -74,6 +131,9 @@ def page(  # type: ignore[no-untyped-def]
             "offered": form.OFFERED,
             "sources_offered": form.SOURCES_OFFERED,
             "source_names": [b.name for b in sources if b.name],
+            "plant_names": [b.name for b in plants if b.name],
+            "sizing": sizing_request or form.Sizing(),
+            "sizing_rows": sizing_rows,
             "period": period,
             "max_days": form.MAX_DAYS,
             "result": result,
@@ -100,6 +160,7 @@ async def submit(request: Request):  # type: ignore[no-untyped-def]
     plants = form.read_boxes(posted, "plant")
     sources = form.read_boxes(posted, "source")
     period = form.Period.read(posted)  # kept across every button (WX-041)
+    wish = form.Sizing.read(posted)  # kept across every button too
     taken = {b.values["name"] for b in [*plants, *sources]}
     action = posted.get("action", "")
     if action == "add":
@@ -124,5 +185,8 @@ async def submit(request: Request):  # type: ignore[no-untyped-def]
             form.import_into(plants[i], content)
     elif action == "run" and plants and not any(b.redrawn for b in [*plants, *sources]):
         result, error = simulate(plants, sources, period)
-        return page(request, plants, sources, period, result, error)
-    return page(request, plants, sources, period)
+        return page(request, plants, sources, period, result, error, wish)
+    elif action == "size" and plants and not any(b.redrawn for b in [*plants, *sources]):
+        rows = size(plants, sources, wish)
+        return page(request, plants, sources, period, sizing_request=wish, sizing_rows=rows)
+    return page(request, plants, sources, period, sizing_request=wish)

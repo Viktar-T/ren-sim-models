@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Command-line tool and web UI for the kiozesim simulation library (specs 0011, 0010, 0017)."
 requires-python = ">=3.11"
 dependencies = [
-    "kiozesim[pv,wind]",
+    "kiozesim[pv,wind,system]",
     "pyyaml>=6",
     "pydantic>=2.7",
     "pandas>=2.2",

@@ -1,0 +1,7 @@
+manufacturer: ICI Caldaie
+model: REX 62
+source: ICI Caldaie, REX - Reverse flame boiler (brochure Depliant REX_2024, EN), page 1, table Technical data,
+  https://www.icicaldaie.com/wp-content/uploads/2024/03/Depliant-REX_2024_EN_Web-4.pdf
+rated_thermal_kw: 620          # heat output, full load
+electrical_efficiency: 0       # a boiler makes no electricity
+thermal_efficiency: 0.92       # "100% Productivity" (REX); 620 kW heat / 672 kW fuel input

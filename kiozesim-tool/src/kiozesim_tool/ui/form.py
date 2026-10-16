@@ -5,7 +5,8 @@ No web code here. A plant box is posted as `p{i}.<field>` strings plus `p{i}.typ
 `p{i}.shown_type` (the type its fields were drawn for), its count as `n`. Spec 0010. A box may also
 hold a datasheet imported from a YAML file, carried in the hidden `p{i}.imported` (spec 0014).
 Source boxes are posted the same way as `s{i}.…` with count `ns`; every box's wiring is posted as
-`<prefix>{i}.from.{j}` = source name, one per ticked source (spec 0016).
+`<prefix>{i}.from.{j}` = source or plant name, one per ticked box (specs 0016, 0019). The sizing
+section is posted as `size_plant` and `size_want` (spec 0019, CHAIN-043).
 """
 
 from __future__ import annotations
@@ -21,9 +22,10 @@ import yaml
 from pydantic import BaseModel, ValidationError
 from pydantic.fields import FieldInfo
 
-from kiozesim import Plant, Source
+from kiozesim import Plant
 from kiozesim.datasheet import Datasheet
 from kiozesim_tool import boxes
+from kiozesim_tool.sources import Source
 
 Kind = Literal["plant", "source"]
 
@@ -37,7 +39,6 @@ SOURCE_TYPES: dict[str, tuple[str, dict[str, Any]]] = {
     "sample weather": ("weather_file", {"path": SAMPLE_WEATHER}),  # SRC-041
     "online weather": ("open_meteo", {}),  # WX-040
     "constant": ("constant", {}),
-    "digester": ("digester", {}),
 }
 SOURCES_OFFERED: tuple[str, ...] = tuple(SOURCE_TYPES)
 PREFIX: dict[str, str] = {"plant": "p", "source": "s"}
@@ -83,6 +84,11 @@ class Box:
     @property
     def name(self) -> str:
         return self.values.get("name", "").strip()
+
+    @property
+    def takes_input(self) -> bool:
+        """Whether the box gets a **from** list: not for plants without input (a digester)."""
+        return self.kind == "source" or boxes.plant_class(self.type).inputs_model is not None
 
     @property
     def carried(self) -> str:
@@ -349,3 +355,16 @@ class Period:
         if start is None or days is None or self.errors:
             return None
         return pd.date_range(start.tz_localize("UTC"), periods=24 * days, freq="h")
+
+
+@dataclass
+class Sizing:
+    """The typed-in sizing request beside the Size button (CHAIN-043)."""
+
+    plant: str = ""
+    want: str = ""
+    errors: dict[str, str] = field(default_factory=dict)  # by field: "size_plant", "size_want"
+
+    @classmethod
+    def read(cls, form: Mapping[str, str]) -> Sizing:
+        return cls(form.get("size_plant", ""), form.get("size_want", ""))

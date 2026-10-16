@@ -67,14 +67,35 @@ def test_discover_empty(tmp_path):
 
 
 @pytest.mark.spec("CORE-008")
-@pytest.mark.parametrize("name", ["pv", "hawt", "vawt", "chp", "boiler"])
-def test_every_plant_has_module_with_contract(name):
+@pytest.mark.parametrize(
+    ("name", "has_datasheet"),
+    [
+        ("pv", True),
+        ("hawt", True),
+        ("vawt", True),
+        ("combustion", True),
+        ("digester", False),
+        ("heat_store", False),
+    ],
+)
+def test_every_plant_has_module_with_contract(name, has_datasheet):
     from kiozesim.plants import REGISTRY
 
     cls = REGISTRY[name]
     assert issubclass(cls, Plant) and issubclass(cls.params_model, PlantParams)
-    assert issubclass(cls.params_model.model_fields["datasheet"].annotation, Datasheet)
+    fields = cls.params_model.model_fields
+    assert ("datasheet" in fields) == has_datasheet
+    if has_datasheet:
+        assert issubclass(fields["datasheet"].annotation, Datasheet)
     assert issubclass(cls.params_model, BaseModel)
+    assert cls.__module__.startswith(f"kiozesim.plants.{name}.")
+
+
+@pytest.mark.spec("CORE-008")
+def test_registry_lists_exactly_the_plants():
+    from kiozesim.plants import REGISTRY
+
+    assert set(REGISTRY) == {"pv", "hawt", "vawt", "combustion", "digester", "heat_store"}
 
 
 class Steady(Plant[Params, None, PlantOutput]):

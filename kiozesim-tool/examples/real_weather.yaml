@@ -9,8 +9,12 @@ sources:
     name: weather
     latitude_deg: 52.23
     longitude_deg: 21.01
+  - type: constant            # a steady heat demand for the buffer tank (test value)
+    name: heat demand
+    values: {heat_demand_kw: 400}
+plants:
   - type: digester            # steady feed -> methane for the gas engine (spec 0005)
-    name: farm
+    name: farm                # a plant without input: no `from`
     substrates:
       - name: maize silage
         fresh_t_per_day: 40
@@ -18,7 +22,6 @@ sources:
         organic_frac: 0.95
         formula: C6H10O5        # plant fibre and starch
         biodegradability: 0.8
-plants:
   - type: pv
     name: roof
     from: weather
@@ -39,9 +42,14 @@ plants:
     from: weather
     datasheet: mariah_power_windspire   # measured power curve (NREL test report)
     hub_height_m: 10
-  - type: chp
+  - type: combustion          # gas engine fed by the digester: a chain farm -> engine (spec 0019)
     name: engine
     from: farm
     datasheet: tedom_flexi_530_biogas   # 528 kW biogas engine
+    availability: 0.92
+  - type: heat_store          # buffer tank after the engine: it asks the engine for heat (heat-led)
+    name: tank
+    from: [engine, heat demand]
+    volume_m3: 50
 sinks:
   - type: stdout

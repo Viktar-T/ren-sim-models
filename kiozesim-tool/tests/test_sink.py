@@ -83,6 +83,7 @@ def write_day(path: Path, step: str = "1h") -> Path:
 
 
 WEATHER = {"type": "weather_file", "name": "weather", "path": str(EXAMPLES / "day_weather.csv")}
+DEMAND = {"type": "constant", "name": "demand", "values": {"heat_demand_kw": 300}}
 FARM = {
     "type": "digester",
     "name": "farm",
@@ -364,14 +365,30 @@ def test_speed_zero_needs_end(tmp_path: Path, capsys: pytest.CaptureFixture[str]
 
 ROOT = Path(__file__).resolve().parents[2]
 # spec prefix -> plant type key in kiozesim.plants.REGISTRY
-PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "CHP": "chp", "BOIL": "boiler"}
+PREFIX_TO_TYPE = {
+    "PV": "pv",
+    "WIND": "hawt",
+    "VAWT": "vawt",
+    "CHP": "combustion",
+    "BIO": "digester",
+    "BOIL": "heat_store",
+}
 HAWT = {"type": "hawt", "name": "turbine", "from": "weather", "datasheet": "E-82/2300"}
 HAWT["hub_height_m"] = 108
 VAWT = {"type": "vawt", "name": "spire", "from": "weather", "datasheet": "mariah_power_windspire"}
 VAWT["hub_height_m"] = 10
-CHP = {"type": "chp", "name": "engine", "from": "farm", "datasheet": "tedom_flexi_530_biogas"}
+CHP = {"type": "combustion", "name": "engine", "from": "farm", "availability": 0.92}
+CHP["datasheet"] = "tedom_flexi_530_biogas"
+TANK = {"type": "heat_store", "name": "tank", "from": ["engine", "demand"], "volume_m3": 50}
 # a working config entry per implemented type
-ONE_OF_EACH = {"pv": PV, "hawt": HAWT, "vawt": VAWT, "chp": CHP}
+ONE_OF_EACH = {
+    "pv": PV,
+    "hawt": HAWT,
+    "vawt": VAWT,
+    "combustion": CHP,
+    "digester": FARM,
+    "heat_store": TANK,
+}
 
 
 def implemented_types() -> set[str]:
@@ -392,13 +409,13 @@ def test_every_implemented_type_usable(tmp_path: Path, capsys: pytest.CaptureFix
 
     assert implemented_types() <= set(ONE_OF_EACH), "add a config entry for the new type"
     plants = [ONE_OF_EACH[t] for t in sorted(implemented_types())]
-    cfg = write_config(tmp_path, plants=plants, sources=[WEATHER, FARM])
+    cfg = write_config(tmp_path, plants=plants, sources=[WEATHER, DEMAND])
     assert run(cfg, max_chunks=1) == 0
     lines = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
     assert set(lines[0]["power_kw"]) == {p["name"] for p in plants}
     assert any(x["power_kw"]["turbine"] > 0 for x in lines)
     deps = tomllib.loads((ROOT / "kiozesim-tool" / "pyproject.toml").read_text())
-    assert "kiozesim[pv,wind]" in deps["project"]["dependencies"]
+    assert "kiozesim[pv,wind,system]" in deps["project"]["dependencies"]
 
 
 @pytest.mark.spec("SINK-045")
@@ -453,8 +470,8 @@ def test_from_takes_a_list(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
 @pytest.mark.spec("SRC-022")
 def test_tool_reports_wiring_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert run(write_config(tmp_path, plants=[{**PV, "from": "farm"}])) == 2
-    assert "roof: wired to 'farm', which is not a source" in capsys.readouterr().err
-    cfg = write_config(tmp_path, plants=[{**PV, "from": "farm"}], sources=[WEATHER, FARM])
+    assert "roof: wired to 'farm', which is not a source or a plant" in capsys.readouterr().err
+    cfg = write_config(tmp_path, plants=[{**PV, "from": "farm"}, FARM])
     assert run(cfg) == 2
     err = capsys.readouterr().err
     assert "roof: wired to farm, which give no" in err and "ghi_w_m2" in err
@@ -462,7 +479,7 @@ def test_tool_reports_wiring_errors(tmp_path: Path, capsys: pytest.CaptureFixtur
 
 @pytest.mark.spec("SRC-023")
 def test_gas_engine_on_digester(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    cfg = write_config(tmp_path, plants=[CHP], sources=[FARM])
+    cfg = write_config(tmp_path, plants=[FARM, CHP])
     assert run(cfg, max_chunks=1) == 0
     lines = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
     assert lines[0]["power_kw"]["engine"] == pytest.approx(528 * 0.92)
@@ -473,7 +490,33 @@ def test_example_has_digester_chain() -> None:
     import yaml
 
     cfg = yaml.safe_load((EXAMPLES / "sink.yaml").read_text())
-    types = {s["name"]: s["type"] for s in cfg["sources"]}
-    engines = [p for p in cfg["plants"] if p["type"] == "chp"]
+    types = {b["name"]: b["type"] for b in [*cfg["sources"], *cfg["plants"]]}
+    engines = [p for p in cfg["plants"] if p["type"] == "combustion"]
     assert engines and all(types[p["from"]] == "digester" for p in engines)
-    assert all(types[p["from"]] == "weather_file" for p in cfg["plants"] if p["type"] != "chp")
+    weather_types = {"pv", "hawt", "vawt"}
+    weather_fed = [p for p in cfg["plants"] if p["type"] in weather_types]
+    assert weather_fed and all(types[p["from"]] == "weather_file" for p in weather_fed)
+
+
+# --- sizing (spec 0019) ----------------------------------------------------------------------
+
+
+@pytest.mark.spec("CHAIN-042")
+def test_size_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    boiler = {"type": "combustion", "name": "boiler", "from": "farm"}
+    boiler["datasheet"] = "ici_caldaie_rex_30"
+    cfg = write_config(
+        tmp_path, plants=[FARM, boiler, TANK | {"from": ["boiler", "demand"]}], sources=[DEMAND]
+    )
+    args = ["size", "--config", str(cfg), "--plant", "tank", "--want", "delivered_kw=100"]
+    assert cli.main(args) == 0
+    out = capsys.readouterr().out
+    assert out.index("tank:") < out.index("boiler:") < out.index("farm:")  # back to front
+    assert "feed maize silage" in out and "t/day" in out
+    assert cli.main([*args[:-1], "lots"]) == 2
+    assert "name=kW" in capsys.readouterr().err
+    assert cli.main([*args[:4], "nope", *args[5:]]) == 2
+    assert "no plant 'nope'" in capsys.readouterr().err
+    roof = write_config(tmp_path, plants=[PV])
+    assert cli.main(["size", "--config", str(roof), "--plant", "roof", "--want", "power_kw=1"]) == 0
+    assert "cannot be asked" in capsys.readouterr().out

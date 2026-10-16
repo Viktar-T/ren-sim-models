@@ -1,15 +1,21 @@
-"""The Plant contract: params at construction, at most one TimeSeries struct at simulate()."""
+"""The Plant contract: params at construction, at most one TimeSeries struct at simulate().
+
+Plants also run one step at a time, so a chain can pass values between them (spec 0019): the
+plant's memory (`State`) is handed in and handed back, never kept in the plant.
+"""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import ClassVar, Generic, Self, TypeVar, cast
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, Generic, Self, TypeVar, cast
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from kiozesim.errors import MissingInputError
+from kiozesim.errors import CannotBeAsked, MissingInputError
 from kiozesim.timegrid import TimeGridError, validate_time_index
 
 
@@ -84,6 +90,34 @@ class PlantOutput(BaseModel):
             raise ValueError("power_kw must be finite and non-negative")
         return v.rename("power_kw") if isinstance(v, pd.Series) else float(v)
 
+    def to_frame(self, index: pd.DatetimeIndex | None = None) -> pd.DataFrame:
+        """One column per field (CHAIN-004); single values are spread over `index`.
+
+        Optional fields left empty (None) are left out.
+        """
+        values = {k: v for k, v in self if v is not None}
+        if index is None:
+            series = [v for v in values.values() if isinstance(v, pd.Series)]
+            if not series:
+                raise ValueError("an output of single values needs an index to spread them over")
+            index = cast(pd.DatetimeIndex, series[0].index)
+        return pd.DataFrame(
+            {k: (v if isinstance(v, pd.Series) else float(v)) for k, v in values.items()},
+            index=index,
+        )
+
+
+State = Any  # a plant's memory between steps: an immutable value, or None for no memory
+
+
+@dataclass(frozen=True)
+class Sizing:
+    """What a plant needs, on average, to give an average output (spec 0019, `Plant.needs`)."""
+
+    inputs: dict[str, float]  # average input needed per input name, kW
+    given: dict[str, float]  # what the plant can give per wanted output, <= wanted
+    feed_t_per_day: dict[str, float] = field(default_factory=dict)  # digester: feed per substrate
+
 
 P = TypeVar("P", bound=PlantParams)
 I = TypeVar("I", bound="TimeSeries | None")  # noqa: E741
@@ -96,6 +130,8 @@ class Plant(ABC, Generic[P, I, O]):
     params_model: ClassVar[type[PlantParams]]
     inputs_model: ClassVar[type[TimeSeries] | None] = None  # None: plant takes no input
     output_model: ClassVar[type[PlantOutput]] = PlantOutput
+    follows_requests: ClassVar[bool] = False  # step makes no more than is wanted (CHAIN-003)
+    askable: ClassVar[tuple[str, ...]] = ()  # outputs sizing can ask for, average kW (`needs`)
 
     def __init__(self, params: P) -> None:
         self.params = params
@@ -123,3 +159,78 @@ class Plant(ABC, Generic[P, I, O]):
     @abstractmethod
     def _simulate(self, ts: I) -> O:
         """Implement the model."""
+
+    # --- one step at a time (spec 0019). Defaults suit plants without memory. ---
+
+    def initial_state(self) -> State:
+        """The plant's memory at the start of a run; None for a plant without memory."""
+        return None
+
+    def want(
+        self,
+        state: State,
+        t: pd.Timestamp,
+        inputs: Mapping[str, float],
+        wanted: Mapping[str, float],
+        dt_h: float,
+    ) -> dict[str, float]:
+        """Backward pass: input wanted per flow name; a name left out means no limit.
+
+        `inputs` holds this step's values from sources only (flows from the plant in front are not
+        known yet); `wanted` the outputs the plant behind asked for.
+        """
+        return {}
+
+    def step(
+        self,
+        state: State,
+        t: pd.Timestamp,
+        inputs: Mapping[str, float],
+        wanted: Mapping[str, float],
+        dt_h: float,
+    ) -> tuple[State, dict[str, float]]:
+        """Forward pass: one step of `dt_h` hours starting at `t`; the new state and the outputs.
+
+        Default: `simulate` on this one step, so a plant without memory steps exactly as it
+        simulates (CHAIN-002).
+        """
+        if self.inputs_model is None:
+            out = self.simulate()
+        else:
+            index = pd.date_range(t, periods=2, freq=pd.Timedelta(hours=dt_h))
+            fields = self.inputs_model.model_fields
+            series = {k: pd.Series(float(v), index=index) for k, v in inputs.items() if k in fields}
+            out = self.simulate(cast(I, self.inputs_model(**series)))
+        return state, {
+            k: float(v.iloc[0]) if isinstance(v, pd.Series) else float(v)
+            for k, v in out
+            if v is not None
+        }
+
+    def needs(self, wanted: Mapping[str, float]) -> Sizing:
+        """Sizing: average inputs for an average output. Default: cannot be asked (CHAIN-024)."""
+        raise CannotBeAsked(self.name)
+
+    def check_asked(self, wanted: Mapping[str, float]) -> None:
+        """Reject output names sizing cannot ask this plant for, listing the ones it can."""
+        unknown = sorted(set(wanted) - set(self.askable))
+        if unknown:
+            options = ", ".join(self.askable)
+            raise ValueError(
+                f"{self.name} cannot be asked for {', '.join(unknown)}; "
+                f"ask for {options} (average kW, e.g. {self.askable[0]}=100)"
+            )
+
+    @classmethod
+    def input_names(cls) -> tuple[str, ...]:
+        return tuple(cls.inputs_model.model_fields) if cls.inputs_model is not None else ()
+
+    @classmethod
+    def required_inputs(cls) -> tuple[str, ...]:
+        if cls.inputs_model is None:
+            return ()
+        return tuple(n for n, f in cls.inputs_model.model_fields.items() if f.is_required())
+
+    @classmethod
+    def output_names(cls) -> tuple[str, ...]:
+        return tuple(cls.output_model.model_fields)

@@ -1,11 +1,11 @@
 # kioze-sim-lib
 
-Python library simulating power generating installations (PV, HAWT, VAWT, gas engine/CHP fed by a biogas digester, boiler + heat store)
+Python library simulating power generating installations (PV, HAWT, VAWT, biogas digester, combustion plant = gas engine/CHP or boiler, heat store), chained front to back (spec 0019)
 from input parameters and weather. Spec-driven: read `specs/README.md` and `specs/constitution.md` first.
 
 uv workspace with two packages: library `kiozesim/` (import `kiozesim`) and the app
 `kiozesim-tool/` (`kiozesim_tool`: the `sink` command, the web UI in `kiozesim_tool.ui`, and the
-code both share: plant/source types, weather sources, wiring; spec 0017). Code in
+code both share: plant/source types, sources, wiring; spec 0017). Code in
 `<package>/src/`, tests in `<package>/tests/`. Only the library's `tests/` has an `__init__.py`; the
 app's test folder must not (it would clash with the library's `tests` package under pytest).
 
@@ -25,3 +25,4 @@ app's test folder must not (it would clash with the library's `tests` package un
 - `uv run kiozesim-tool sink 15min --config kiozesim-tool/examples/sink.yaml` stream readings (spec 0011)
 - `uv run kiozesim-tool sink 15min --config kiozesim-tool/examples/mqtt.yaml` stream to a local MQTT broker (spec 0012)
 - `uv run kiozesim-tool sink 1h --config kiozesim-tool/examples/real_weather.yaml` real weather from Open-Meteo (spec 0018)
+- `uv run kiozesim-tool size --config <file> --plant <last plant> --want delivered_kw=100` size a chain (spec 0019)

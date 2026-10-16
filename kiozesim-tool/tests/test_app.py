@@ -11,8 +11,8 @@ import uvicorn
 
 import kiozesim_tool
 from kiozesim.plants.pv import PVDatasheet, PVPlant
-from kiozesim.sources import ConstantSource
 from kiozesim_tool import boxes, cli, config
+from kiozesim_tool.sources import ConstantSource
 from kiozesim_tool.ui import form
 from kiozesim_tool.ui.app import app
 
@@ -84,7 +84,7 @@ def test_build_plant_loads_bundled_datasheet() -> None:
     with pytest.raises(ValueError, match="no bundled datasheet 'nope'"):
         boxes.build_plant("pv", {**PV, "datasheet": "nope"})
     with pytest.raises(ValueError, match="unknown plant type"):
-        boxes.build_plant("boiler", PV)  # spec 0006 not implemented
+        boxes.build_plant("boiler", PV)  # a boiler is a combustion plant (0019)
 
 
 @pytest.mark.spec("APP-005")

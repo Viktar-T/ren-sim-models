@@ -1,21 +1,23 @@
-"""Biogas digester: steady feed in, methane out, as fuel for a gas engine. Spec 0005.
+"""Biogas digester: steady feed in, methane out, as fuel for a combustion plant. Specs 0005, 0019.
 
-I/O contract (a Source, spec 0016)
-  input : only the time axis to fill; no input columns, the feed (t/day per substrate) is a setting
-  output: DataFrame with fuel_kw (methane energy, lower heating value) and methane_nm3_per_h on
-          that axis; `fuel_kw` is the gas engine's input (spec 0015).
-Steady feeding: the output is the same on every step.
+I/O contract (a plant without input, CORE-004)
+  input : none; the feed (t/day per substrate) is a setting
+  output: DigesterOutput, single values: fuel_kw (methane energy, lower heating value),
+          methane_nm3_per_h and power_kw 0 (it makes no electricity). `fuel_kw` flows on to a
+          combustion plant in a chain (spec 0019).
+Steady feeding: the output is the same on every time step. Ignores requests within a step (the
+bacteria take weeks to react); sizing (`needs`) scales the feed on averages.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import Self
 
-import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from kiozesim.sources.base import Source
+from kiozesim.plants.base import Plant, PlantOutput, PlantParams, Sizing
 
 NM3_PER_MOL = 0.022414  # ideal gas at 0 degC, 1.01325 bar
 CH4_KWH_PER_NM3 = 9.97  # methane lower heating value, DIN EN ISO 6976
@@ -82,9 +84,7 @@ class Substrate(BaseModel):
         return organic_kg * self.yield_nm3_per_kg
 
 
-class DigesterParams(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
+class DigesterParams(PlantParams):
     name: str = Field(min_length=1)
     substrates: tuple[Substrate, ...] = Field(
         min_length=1,
@@ -112,16 +112,32 @@ class DigesterParams(BaseModel):
         return v
 
 
-class Digester(Source[DigesterParams]):
-    """Steady feed -> constant methane, as a fuel table for a gas engine."""
+class DigesterOutput(PlantOutput):
+    fuel_kw: float  # methane energy made, kW, lower heating value
+    methane_nm3_per_h: float
+
+
+class DigesterPlant(Plant[DigesterParams, None, DigesterOutput]):
+    """Steady feed -> constant methane, as fuel for a combustion plant."""
 
     params_model = DigesterParams
+    output_model = DigesterOutput
+    askable = ("fuel_kw",)
 
-    def _simulate(self, index: pd.DatetimeIndex, inputs: pd.DataFrame | None) -> pd.DataFrame:
+    def _simulate(self, ts: None) -> DigesterOutput:
         subs = self.params.substrates
         nm3_per_h = sum(s.fresh_t_per_day * s.methane_nm3_per_t for s in subs) / 24
-        return pd.DataFrame(
-            {"fuel_kw": nm3_per_h * CH4_KWH_PER_NM3, "methane_nm3_per_h": nm3_per_h},
-            index=index,
-            dtype=float,
+        return DigesterOutput(
+            power_kw=0.0, fuel_kw=nm3_per_h * CH4_KWH_PER_NM3, methane_nm3_per_h=nm3_per_h
         )
+
+    def needs(self, wanted: Mapping[str, float]) -> Sizing:
+        """The feed giving `fuel_kw` on average: all substrates scaled alike (CHAIN-023)."""
+        self.check_asked(wanted)
+        made = self._simulate(None).fuel_kw
+        want = max(0.0, wanted.get("fuel_kw", 0.0))
+        if made == 0 and want > 0:
+            raise ValueError(f"{self.name}: its feed makes no gas, so there is nothing to scale")
+        factor = want / made if made > 0 else 0.0
+        feed = {s.name: s.fresh_t_per_day * factor for s in self.params.substrates}
+        return Sizing({}, {"fuel_kw": want}, feed)

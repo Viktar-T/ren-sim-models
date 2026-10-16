@@ -1,0 +1,14 @@
+params:
+  name: tank_50m3
+  volume_m3: 50.0
+  height_m: 2.0
+  u_value_w_m2k: 0.4
+  temp_hot_c: 80.0
+  temp_cold_c: 40.0
+  temp_room_c: 15.0
+  initial_fill: 0.5
+column: stored_kwh
+rtol: 1.0e-06
+atol: 1.0e-06
+source: Spec 0006 Acceptance, worked out by make_week_case.py from the published stratified-tank
+  equations (oemof.thermal docs) and 0006's step order, without kiozesim.

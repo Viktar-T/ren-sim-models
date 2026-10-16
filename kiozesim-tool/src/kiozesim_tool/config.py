@@ -9,9 +9,10 @@ import pandas as pd
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from kiozesim import Plant, Source
+from kiozesim import Plant
 from kiozesim_tool.boxes import build_plant, build_source
 from kiozesim_tool.sink import SINKS, Sink
+from kiozesim_tool.sources import Source
 from kiozesim_tool.wiring import Wires
 
 
@@ -86,14 +87,14 @@ def build_sources(entries: list[dict[str, Any]], base: Path) -> list[Source]:  #
 
 
 def wires_of(entries: list[dict[str, Any]]) -> Wires:
-    """Box name -> its `from` sources; `from` is one name or a list of names (SRC-030)."""
+    """Box name -> what it takes input from; `from` is one name or a list of names (SRC-030)."""
     wires: dict[str, list[str]] = {}
     for entry in entries:
         froms = entry.get("from", [])
         froms = [froms] if isinstance(froms, str) else froms
         if not isinstance(froms, list) or not all(isinstance(f, str) for f in froms):
             raise ValueError(
-                f"{entry.get('name')}: `from` must be a source name or a list of names"
+                f"{entry.get('name')}: `from` must be a source or plant name, or a list of names"
             )
         wires[str(entry.get("name"))] = froms
     return wires

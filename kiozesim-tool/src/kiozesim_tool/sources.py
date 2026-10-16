@@ -1,6 +1,8 @@
-"""The Source contract: a box that makes time series from settings and an optional input table.
+"""Sources: boxes that feed time series into plant chains (specs 0016, 0019).
 
-Sources do not wire themselves: an app hands each one its input table (spec 0016, constitution 2).
+"Source" is the tool's word: the library holds plants only. A source makes time series from its
+settings and an optional input table; it does not wire itself: the app hands each one its input
+table. Weather sources are in `kiozesim_tool.weather`.
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ from collections.abc import Iterable
 from typing import ClassVar, Generic, TypeVar
 
 import pandas as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from kiozesim.errors import MissingInputError
 from kiozesim.timegrid import TimeGridError, validate_time_index
@@ -51,3 +53,20 @@ class Source(ABC, Generic[P]):
     @abstractmethod
     def _simulate(self, index: pd.DatetimeIndex, inputs: pd.DataFrame | None) -> pd.DataFrame:
         """Implement the model."""
+
+
+class ConstantParams(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+
+    name: str = Field(min_length=1)
+    # output column -> value
+    values: dict[str, float] = Field(min_length=1, examples=[{"fuel_kw": 1500}])
+
+
+class ConstantSource(Source[ConstantParams]):
+    """A fixed value on every step: for testing a plant without a real source (SRC-005)."""
+
+    params_model = ConstantParams
+
+    def _simulate(self, index: pd.DatetimeIndex, inputs: pd.DataFrame | None) -> pd.DataFrame:
+        return pd.DataFrame(dict(self.params.values), index=index, dtype=float)

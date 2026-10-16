@@ -11,23 +11,21 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from kiozesim import Plant, Source
+from kiozesim import Plant
 from kiozesim.datasheet import Datasheet
 from kiozesim.plants import REGISTRY
-from kiozesim.sources import ConstantSource
-from kiozesim.sources.digester import Digester
+from kiozesim_tool.sources import ConstantSource, Source
 from kiozesim_tool.weather import FileWeatherSource, OpenMeteoSource
 
 # Plant types whose spec is implemented (UI-005, SINK-026), in the order the page lists them.
 PLANTS: dict[str, type[Plant]] = {  # type: ignore[type-arg]
-    t: REGISTRY[t] for t in ("pv", "hawt", "vawt", "chp")
+    t: REGISTRY[t] for t in ("pv", "hawt", "vawt", "combustion", "digester", "heat_store")
 }
 
 SOURCES: dict[str, type[Source]] = {  # type: ignore[type-arg]
     "weather_file": FileWeatherSource,
     "open_meteo": OpenMeteoSource,  # WX-030
     "constant": ConstantSource,
-    "digester": Digester,
 }
 
 

@@ -26,7 +26,14 @@ PKG = Path(kiozesim_tool.ui.__file__).resolve().parent
 ROOT = PKG.parents[3]
 SPECS = ROOT / "specs"
 # spec prefix -> plant type key in kiozesim.plants.REGISTRY
-PREFIX_TO_TYPE = {"PV": "pv", "WIND": "hawt", "VAWT": "vawt", "CHP": "chp", "BOIL": "boiler"}
+PREFIX_TO_TYPE = {
+    "PV": "pv",
+    "WIND": "hawt",
+    "VAWT": "vawt",
+    "CHP": "combustion",
+    "BIO": "digester",
+    "BOIL": "heat_store",
+}
 
 client = TestClient(app)
 
@@ -80,9 +87,12 @@ def post(
     *boxes: dict[str, str],
     files: dict[str, Upload] | None = None,
     sources: tuple[dict[str, str], ...] = (WEATHER,),
+    extra: dict[str, str] | None = None,
 ) -> str:
-    """Post plant boxes (wired to `weather` unless a box gives `from`, a list) and source boxes."""
+    """Post plant boxes (wired to `weather` unless a box gives `from`, a list) and source boxes;
+    `extra`: other posted fields (the sizing section)."""
     data: dict[str, str] = {"action": action, "n": str(len(boxes)), "ns": str(len(sources))}
+    data |= extra or {}
     for prefix, group in (("p", boxes), ("s", sources)):
         for i, box in enumerate(group):
             box = dict(box)
@@ -414,7 +424,7 @@ def test_energy_per_plant_and_total(run_two: str) -> None:
 
 @pytest.mark.spec("UI-015")
 def test_chart_is_server_svg(run_two: str) -> None:
-    m = re.search(r'<div class="chart">\s*(<svg.*?</svg>)', run_two, re.S)
+    m = re.search(r'<div class="chart" data-chart="power_kw">\s*(<svg.*?</svg>)', run_two, re.S)
     assert m
     svg = m.group(1)
     for name in ("roof-a", "roof-b", "total"):
@@ -631,10 +641,16 @@ SUBSTRATES = """
   formula: C6H10O5
   biodegradability: 0.8
 """
-FARM = {"type": "digester", "shown_type": "digester", "name": "farm", "substrates": SUBSTRATES}
+FARM = {
+    "type": "digester",
+    "shown_type": "digester",
+    "name": "farm",
+    "substrates": SUBSTRATES,
+    "from": [],  # a plant without input
+}
 CHP_BOX = {
-    "type": "chp",
-    "shown_type": "chp",
+    "type": "combustion",
+    "shown_type": "combustion",
     "name": "engine",
     "datasheet": "tedom_flexi_530_biogas",
     "availability": "0.92",
@@ -661,19 +677,20 @@ def test_sources_column_add_remove() -> None:
     assert source_boxes(first) == 1
     assert first.index('<div class="plants">') < first.index('<div class="sources">')
     assert 'value="remove_source:' not in first  # the last source box stays
-    page = post("add_source", pv("roof"), sources=(WEATHER, FARM))
-    assert source_boxes(page) == 3 and value(page, "s1.name") == "farm"
+    fuel = constant("fuel", "fuel_kw: 100")
+    page = post("add_source", pv("roof"), sources=(WEATHER, fuel))
+    assert source_boxes(page) == 3 and value(page, "s1.name") == "fuel"
     assert 'value="add_source"' in page and 'value="apply"' in page
-    page = post("remove_source:0", pv("roof"), sources=(WEATHER, FARM))
-    assert source_boxes(page) == 1 and value(page, "s0.name") == "farm"
+    page = post("remove_source:0", pv("roof"), sources=(WEATHER, fuel))
+    assert source_boxes(page) == 1 and value(page, "s0.name") == "fuel"
     css = (PKG / "static" / "style.css").read_text()
     assert "grid-template-columns" in css and "auto-fit" in css
 
 
 @pytest.mark.spec("SRC-043")
 def test_source_type_change_is_redrawn() -> None:
-    page = post("apply", pv("roof"), sources=({**WEATHER, "type": "digester"},))
-    assert value(page, "s0.type") == "digester" and "s0.substrates" in page
+    page = post("apply", pv("roof"), sources=({**WEATHER, "type": "constant"},))
+    assert value(page, "s0.type") == "constant" and "s0.values" in page
 
 
 @pytest.mark.spec("SRC-044")
@@ -688,8 +705,8 @@ def test_first_page_plant_wired_to_sample_weather() -> None:
 @pytest.mark.spec("SRC-040")
 @pytest.mark.spec("WX-040")
 def test_source_types_and_from_tick_boxes() -> None:
-    page = post("apply", pv("roof"), sources=(WEATHER, FARM))
-    assert options(page, "s0.type") == ["sample weather", "online weather", "constant", "digester"]
+    page = post("apply", pv("roof"), sources=(WEATHER, constant("fuel", "fuel_kw: 1")))
+    assert options(page, "s0.type") == ["sample weather", "online weather", "constant"]
     assert "p0.from.0" in page and "p0.from.1" in page  # one tick box per source
     assert "s1.from.0" in page and "s1.from.1" not in page  # a source lists the others only
 
@@ -704,22 +721,22 @@ def test_sample_weather_is_file_weather_source() -> None:
 
 @pytest.mark.spec("SRC-042")
 def test_digester_substrates_as_yaml() -> None:
-    page = post("apply", pv("roof"), sources=(WEATHER, {**FARM, "substrates": ""}))
-    assert '<textarea id="s1.substrates"' in page and "maize silage" in page  # example shown
-    bad = post("run", pv("roof"), sources=(WEATHER, {**FARM, "substrates": "- name: [unclosed"}))
-    assert "not YAML" in error(bad, "s1.substrates") and "data-energy-kwh" not in bad
-    worse = post("run", pv("roof"), sources=(WEATHER, {**FARM, "substrates": SUBSTRATES + "x"}))
-    assert error(worse, "s1.substrates")
+    page = post("apply", pv("roof"), {**FARM, "substrates": ""})
+    assert '<textarea id="p1.substrates"' in page and "maize silage" in page  # example shown
+    bad = post("run", pv("roof"), {**FARM, "substrates": "- name: [unclosed"})
+    assert "not YAML" in error(bad, "p1.substrates") and "data-energy-kwh" not in bad
+    worse = post("run", pv("roof"), {**FARM, "substrates": SUBSTRATES + "x"})
+    assert error(worse, "p1.substrates")
     formula = SUBSTRATES.replace("C6H10O5", "H2O")
-    wrong = post("run", pv("roof"), sources=(WEATHER, {**FARM, "substrates": formula}))
-    assert "needs C and H" in error(wrong, "s1.substrates")
+    wrong = post("run", pv("roof"), {**FARM, "substrates": formula})
+    assert "needs C and H" in error(wrong, "p1.substrates")
 
 
 @pytest.mark.spec("SRC-023")
 def test_gas_engine_on_digester_runs() -> None:
-    page = post("run", pv("roof"), CHP_BOX, sources=(WEATHER, FARM))
+    page = post("run", pv("roof"), FARM, CHP_BOX)
     assert energy(page, "engine") == pytest.approx(528 * 0.92 * 24, rel=1e-4)
-    assert "chp" in options(page, "p1.type")
+    assert "combustion" in options(page, "p2.type")
 
 
 @pytest.mark.spec("SRC-021")
@@ -744,3 +761,118 @@ def test_same_column_from_two_sources_on_the_page() -> None:
     engine = {**CHP_BOX, "from": ["a", "b"]}
     page = post("run", engine, sources=(constant("a", "fuel_kw: 1"), constant("b", "fuel_kw: 2")))
     assert "'fuel_kw' comes from both a and b" in box_error(page, "p0")
+
+
+# --- plant chains and sizing (spec 0019) ------------------------------------------------------
+
+BOILER_BOX = {
+    "type": "combustion",
+    "shown_type": "combustion",
+    "name": "boiler",
+    "datasheet": "ici_caldaie_rex_30",
+    "availability": "1",
+    "from": ["farm"],
+}
+TANK_BOX = {
+    "type": "heat_store",
+    "shown_type": "heat_store",
+    "name": "tank",
+    "volume_m3": "20",
+    "from": ["boiler", "demand"],
+}
+DEMAND = constant("demand", "heat_demand_kw: 150")
+
+
+@pytest.mark.spec("CHAIN-040")
+def test_plant_boxes_wire_to_plants() -> None:
+    page = post("apply", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,))
+    ticks = {value(page, f"p2.from.{j}"): checked(page, f"p2.from.{j}") for j in range(3)}
+    assert ticks == {"demand": True, "farm": False, "boiler": True}  # sources, then plants
+    assert "p0.from.0" not in page  # a digester takes no input: no from list
+    run = post("run", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,))
+    assert energy(run, "tank") == 0 and energy(run, "total") == 0  # heat only
+    merge = post(
+        "run",
+        FARM,
+        BOILER_BOX,
+        {**TANK_BOX, "from": ["farm", "boiler", "demand"]},
+        sources=(DEMAND,),
+    )
+    assert "takes input from two plants" in box_error(merge, "p2")
+
+
+@pytest.mark.spec("CHAIN-041")
+def test_chart_and_total_show_power_only() -> None:
+    page = post("run", pv("roof"), FARM, CHP_BOX)
+    assert energy(page, "total") == pytest.approx(
+        energy(page, "roof") + energy(page, "engine"), abs=0.02
+    )
+    assert energy(page, "farm") == 0
+
+
+@pytest.mark.spec("CHAIN-043")
+def test_sizing_section() -> None:
+    first = client.get("/").text
+    assert 'name="size_plant"' in first and 'name="size_want"' in first
+    assert 'value="size"' in first
+    wish = {"size_plant": "tank", "size_want": "delivered_kw=100"}
+    page = post("size", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,), extra=wish)
+    assert 'data-sizing="tank"' in page and 'data-sizing="boiler"' in page
+    assert "maize silage" in page and "t/day" in page
+    assert value(page, "size_want") == "delivered_kw=100"
+    bad = post(
+        "size", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,), extra=wish | {"size_want": "lots"}
+    )
+    assert "name=kW" in error(bad, "size_want")
+    roof = post("size", pv("roof"), extra={"size_plant": "roof", "size_want": "power_kw=1"})
+    assert 'data-sizing="roof"' in roof and "cannot be asked" in roof
+
+
+# --- charts of every output (spec 0020) -------------------------------------------------------
+
+
+def charts(html: str) -> dict[str, str]:
+    """Chart name -> its <svg>, in page order."""
+    found = re.findall(r'<div class="chart" data-chart="([^"]+)">\s*(<svg.*?</svg>)', html, re.S)
+    return dict(found)
+
+
+@pytest.mark.spec("PLOT-001")
+@pytest.mark.spec("PLOT-003")
+def test_one_chart_per_output_field() -> None:
+    page = post("run", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,))
+    shown = charts(page)
+    assert "power_kw" in shown
+    for field in ("fuel_kw", "heat_kw", "delivered_kw", "stored_kwh", "methane_nm3_per_h"):
+        assert field in shown, field
+    # one line per plant reporting the field, labelled by plant name
+    assert "boiler" in shown["heat_kw"] and "tank" not in shown["heat_kw"]
+    assert "farm" in shown["fuel_kw"] and "boiler" in shown["fuel_kw"]
+    assert "tank" in shown["stored_kwh"] and "farm" not in shown["stored_kwh"]
+    assert "<script" not in page
+
+
+@pytest.mark.spec("PLOT-002")
+def test_charts_in_order_of_first_appearance() -> None:
+    page = post("run", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,))
+    order = list(charts(page))
+    expected = ["power_kw", "fuel_kw", "methane_nm3_per_h", "heat_kw", "delivered_kw"]
+    assert order[: len(expected)] == expected
+    assert order[len(expected) :] == ["unmet_kw", "dumped_kw", "loss_kw", "stored_kwh"]
+
+
+@pytest.mark.spec("PLOT-004")
+def test_charts_draw_the_run_outputs() -> None:
+    from kiozesim_tool.ui.chart import output_fields, output_svgs
+
+    index = pd.date_range("2026-06-21", periods=3, freq="h", tz="UTC")
+    outputs = {
+        "farm": pd.DataFrame({"power_kw": 0.0, "fuel_kw": 432.0}, index=index),  # a flat line
+        "boiler": pd.DataFrame({"power_kw": 0.0, "heat_kw": [1.0, 2.0, 3.0]}, index=index),
+    }
+    assert output_fields(outputs) == ["fuel_kw", "heat_kw"]
+    (fuel, fuel_svg), (heat, heat_svg) = output_svgs(outputs)
+    assert (fuel, heat) == ("fuel_kw", "heat_kw")
+    assert "farm" in fuel_svg and "boiler" in heat_svg
+    page = post("run", FARM, BOILER_BOX, TANK_BOX, sources=(DEMAND,))
+    assert 'data-chart="power_kw"' in page  # the power chart stays first, unchanged

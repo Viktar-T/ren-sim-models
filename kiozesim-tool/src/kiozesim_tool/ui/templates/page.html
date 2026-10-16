@@ -53,7 +53,7 @@
     </tr>
     {% endif %}
   {% endfor %}
-    {% set others = source_names|reject("equalto", box.name)|list %}{% if others or kind == "plant" %}
+    {% set wirable = source_names if kind == "source" else source_names + plant_names %}{% set others = wirable|reject("equalto", box.name)|list %}{% if box.takes_input and (others or kind == "plant") %}
     <tr class="from">
       <td>from</td>
       <td>
@@ -93,8 +93,29 @@
   {% if period.errors.get("run_days") %}<span class="error" data-for="run_days">{{ period.errors["run_days"] }}</span>{% endif %}
   <button type="submit" name="action" value="run" class="run">Run</button>
 </div>
+<div class="buttons sizing">
+  <label for="size_plant">size the chain ending at</label>
+  <select id="size_plant" name="size_plant">
+    {% for n in plant_names %}<option value="{{ n }}"{% if n == sizing.plant %} selected{% endif %}>{{ n }}</option>{% endfor %}
+  </select>
+  <label for="size_want">for</label>
+  <input id="size_want" name="size_want" type="text" value="{{ sizing.want }}" placeholder="delivered_kw=100">
+  <button type="submit" name="action" value="size">Size</button>
+  {% if sizing.errors.get("size_want") %}<span class="error" data-for="size_want">{{ sizing.errors["size_want"] }}</span>{% endif %}
+</div>
 </form>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if sizing_rows %}
+<fieldset class="result sizing-result">
+  <legend>Sizing (averages)</legend>
+  <table class="sizing">
+    <tr><th>plant</th><th>asked for</th><th>gives</th><th>short by</th><th>needs</th><th>feed / note</th></tr>
+    {% for row in sizing_rows %}
+    <tr data-sizing="{{ row.plant }}"><td>{{ row.plant }}</td><td>{{ row.wanted }}</td><td>{{ row.given }}</td><td>{{ row.short }}</td><td>{{ row.needs }}</td><td>{{ row.feed }}</td></tr>
+    {% endfor %}
+  </table>
+</fieldset>
+{% endif %}
 {% if result %}
 <fieldset class="result">
   <legend>Result</legend>
@@ -104,9 +125,14 @@
     <tr><td>{{ name }}</td><td data-energy-kwh="{{ name }}">{{ "%.2f"|format(kwh) }}</td></tr>
     {% endfor %}
   </table>
-  <div class="chart">
+  <div class="chart" data-chart="power_kw">
 {{ result.chart }}
   </div>
+  {% for field, chart in result.output_charts %}
+  <div class="chart" data-chart="{{ field }}">
+{{ chart }}
+  </div>
+  {% endfor %}
 </fieldset>
 {% endif %}
 </body>

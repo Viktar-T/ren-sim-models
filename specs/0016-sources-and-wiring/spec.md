@@ -41,6 +41,10 @@ Out:
 
 ## Domain notes
 
+Since spec 0019 (plant chains): `Source` and `ConstantSource` live in the tool
+(`kiozesim_tool.sources`), the digester is a plant, plants may be wired to one plant in front of
+them, and the library runs plant chains. The notes below describe the design as of 0016.
+
 ### Boxes and wires
 A **source** has settings (a frozen pydantic model, like plant params), may take an input table, and
 returns an output table: a DataFrame whose columns are its outputs, on a requested time axis. It does
@@ -119,12 +123,12 @@ a column with the same name, the app cannot know which one is meant, so that is 
 ## Requirements
 
 Library
-- **SRC-001** `kiozesim.sources` MUST define an abstract `Source` with `params_model`, `name` and `simulate(index, inputs=None)` returning a DataFrame on exactly `index`; `index` MUST follow the time-grid rules (CORE-002), and `inputs`, when given, MUST be on `index`.
+- **SRC-001** `kiozesim_tool.sources` MUST define an abstract `Source` with `params_model`, `name` and `simulate(index, inputs=None)` returning a DataFrame on exactly `index`; `index` MUST follow the time-grid rules (CORE-002), and `inputs`, when given, MUST be on `index`.
 - **SRC-002** A source whose needed input columns are absent from `inputs` (or `inputs` is `None`) MUST raise `MissingInputError` naming the source and every missing column.
 - **SRC-003** `TimeSeries.from_frame` MUST raise `MissingInputError` naming every required field the frame lacks.
-- **SRC-004** `Digester` MUST be a `Source` with no inputs whose output columns are `fuel_kw` and `methane_nm3_per_h`, with the values of 0005.
-- **SRC-005** `ConstantSource` MUST output one column per entry of `values`, holding that value on every step of `index`, and MUST reject an empty or non-finite `values`.
-- **SRC-006** The library MUST NOT contain wiring, ordering or running of several boxes, and MUST NOT import the app (`kiozesim_tool`).
+SRC-004 is retired: the digester is a plant again (0019 CHAIN-020, 0005 BIO-002).
+- **SRC-005** `ConstantSource` (`kiozesim_tool.sources`) MUST output one column per entry of `values`, holding that value on every step of `index`, and MUST reject an empty or non-finite `values`.
+- **SRC-006** The library MUST NOT contain sources or wiring of sources to plants (it runs plant chains only, 0019), and MUST NOT import the app (`kiozesim_tool`).
 
 Weather package
 SRC-010 is retired: the shared package was folded into `kiozesim-tool` (APP-001, spec 0017).
@@ -132,21 +136,21 @@ SRC-010 is retired: the shared package was folded into `kiozesim-tool` (APP-001,
 - **SRC-012** The apps MUST get weather only through the `kiozesim_tool.weather` sources; no other app module MAY define a weather source.
 
 Apps (both)
-- **SRC-020** Every plant, and every source that takes inputs, MUST be wired to one or more sources by name; a missing wire, an unknown name, a duplicate name across sources and plants, or a wiring loop MUST be rejected before simulating, with a message naming the box.
-- **SRC-021** The app MUST run each source at most once per run, after the sources it is wired to, and pass every box the output tables of its sources joined side by side.
+- **SRC-020** Every plant that takes input, and every source that takes inputs, MUST be wired by name: a source to sources, a plant to sources and at most one plant (0019 CHAIN-040); a missing wire, an unknown name, a duplicate name across sources and plants, or a wiring loop MUST be rejected before simulating, with a message naming the box.
+- **SRC-021** The app MUST run each source at most once per run, after the sources it is wired to, and pass every box the output tables of its sources joined side by side; plants wired to plants run as one chain (0019).
 - **SRC-024** When two sources wired into one box both output a column of the same name, the app MUST reject the wiring, naming the box, the column and both sources.
 - **SRC-022** A `MissingInputError` from a box MUST be shown as a wiring error naming the box, its source and the missing columns, not as a crash.
-- **SRC-023** The gas engine (`chp`) MUST be usable in both apps, wired to a digester or a constant source.
+- **SRC-023** The combustion plant (`combustion`) MUST be usable in both apps, wired to a digester plant or a constant source.
 
 Tool
-- **SRC-030** The config MUST have `sources:` (each with `type`, `name`, its settings and, if it takes inputs, `from`) and every `plants:` entry MUST have `from` (a source name or a list of names); source types MUST be `weather_file`, `open_meteo` (WX-030), `constant` and `digester`. The `weather:` key MUST be rejected with a message pointing to `sources:`.
-- **SRC-031** `kiozesim-tool/examples/sink.yaml` MUST wire its weather plants to a `weather_file` source and MUST also contain a digester → `chp` chain, and MUST run at `speed: 0`.
+- **SRC-030** The config MUST have `sources:` (each with `type`, `name`, its settings and, if it takes inputs, `from`) and every `plants:` entry that takes input MUST have `from` (a source or plant name, or a list of names); source types MUST be `weather_file`, `open_meteo` (WX-030) and `constant`. The `weather:` key MUST be rejected with a message pointing to `sources:`.
+- **SRC-031** `kiozesim-tool/examples/sink.yaml` MUST wire its weather plants to a `weather_file` source and MUST also contain a digester → `combustion` chain, and MUST run at `speed: 0`.
 
 Web app
 - **SRC-043** Source boxes MUST sit in a column to the right of the plant boxes and MUST behave like plant boxes (UI-004, UI-005, UI-019): a type selector with **Apply**, a **Remove** button (not on the last source box), and a **+** button below the last source box that adds one, keeping everything typed in all boxes.
 - **SRC-044** The first page MUST show one plant box and one `sample weather` source box, with that plant wired to it; boxes added later start unwired.
-- **SRC-040** The page MUST offer source boxes of types `sample weather`, `online weather` (WX-040), `constant` and `digester`, and a **from** list of tick boxes on each plant box and each source box with inputs, one per source on the page.
-- **SRC-042** A digester box MUST take its substrates as YAML text (a list of `Substrate` field mappings) and MUST show a substrate error (bad YAML, a field out of range, a bad formula) on that box.
+- **SRC-040** The page MUST offer source boxes of types `sample weather`, `online weather` (WX-040) and `constant`, and a **from** list of tick boxes on each plant box and each source box with inputs, one per source on the page and, on a plant box, one per other plant.
+- **SRC-042** A digester plant box MUST take its substrates as YAML text (a list of `Substrate` field mappings) and MUST show a substrate error (bad YAML, a field out of range, a bad formula) on that box.
 - **SRC-041** `sample weather` MUST be a `FileWeatherSource` reading the UI's sample day.
 
 ## Acceptance
@@ -184,3 +188,7 @@ Web app
   retired, SRC-006, SRC-011, SRC-012 name `kiozesim_tool`
 - 2026-10-13 real weather (0018): source type `open_meteo` (SRC-030) and page box `online weather`
   (SRC-040); `weather_file` also reads dated files (WX-020)
+- 2026-10-15 plant chains (0019): `Source` and `ConstantSource` move to `kiozesim_tool.sources`
+  (SRC-001, SRC-005, SRC-006); the digester is a plant (SRC-004 retired; SRC-023, SRC-031, SRC-042);
+  plants may be wired to a plant, plants without input need no wire (SRC-020, SRC-021, SRC-030,
+  SRC-040); source types `weather_file`, `open_meteo`, `constant`

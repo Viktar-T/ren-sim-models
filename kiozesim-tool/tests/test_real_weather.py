@@ -16,9 +16,9 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from kiozesim import Source
 from kiozesim_tool import cli, weather
 from kiozesim_tool.boxes import build_source
+from kiozesim_tool.sources import Source
 from kiozesim_tool.ui import form
 from kiozesim_tool.ui.app import app
 from kiozesim_tool.weather import (

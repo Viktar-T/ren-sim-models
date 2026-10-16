@@ -962,7 +962,7 @@ requires-dist = [
     { name = "fmpy", marker = "extra == 'fmu'", specifier = ">=0.3" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "oemof-solph", marker = "extra == 'system'", specifier = ">=0.5" },
-    { name = "oemof-thermal", marker = "extra == 'system'", specifier = ">=0.0.6" },
+    { name = "oemof-thermal", marker = "extra == 'system'", specifier = "==0.0.9a1" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pvlib", marker = "extra == 'pv'", specifier = ">=0.11" },
     { name = "pydantic", specifier = ">=2.7" },
@@ -978,7 +978,7 @@ source = { editable = "kiozesim-tool" }
 dependencies = [
     { name = "fastapi" },
     { name = "jinja2" },
-    { name = "kiozesim", extra = ["pv", "wind"] },
+    { name = "kiozesim", extra = ["pv", "system", "wind"] },
     { name = "matplotlib" },
     { name = "paho-mqtt" },
     { name = "pandas" },
@@ -992,7 +992,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "jinja2", specifier = ">=3.1" },
-    { name = "kiozesim", extras = ["pv", "wind"], editable = "kiozesim" },
+    { name = "kiozesim", extras = ["pv", "wind", "system"], editable = "kiozesim" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "paho-mqtt", specifier = ">=2" },
     { name = "pandas", specifier = ">=2.2" },
@@ -2004,7 +2004,7 @@ wheels = [
 
 [[package]]
 name = "oemof-thermal"
-version = "0.0.6"
+version = "0.0.9a1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "matplotlib" },
@@ -2014,9 +2014,9 @@ dependencies = [
     { name = "pandas" },
     { name = "pvlib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/00/f5548caab1665a02e34caf4a70965f9ba290d779bae75b65929db68d3d70/oemof.thermal-0.0.6.tar.gz", hash = "sha256:6f87e8f37d1b29283796861d4d4aa4e5a033b3ce826e236e886539bf1a651b72", size = 26078, upload-time = "2023-06-12T17:38:25.581Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/57/98e6540129a8b59c61cf1c34f0c5aba1acc7ab2e72adf21951bae5e656dd/oemof_thermal-0.0.9a1.tar.gz", hash = "sha256:c36a897a5fab27adeeb91d9d983af81dc7b24063dfb867107fdc6748fd52c931", size = 4252052, upload-time = "2025-05-26T10:40:39.866Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/f7/665ee97196e7041e52e63f47779800cf6bba0c09647d16406b523f73bcdb/oemof.thermal-0.0.6-py3-none-any.whl", hash = "sha256:b441fb9756ef668ddf51c40273e6f3ba08cc1c65f16eae74cd18536393b675a6", size = 22709, upload-time = "2023-06-12T17:38:23.598Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/96/8ced2b3267728b6b85e0aa1c7b109f0871f174fb9b4f50c30101d63a6b1c/oemof_thermal-0.0.9a1-py3-none-any.whl", hash = "sha256:b6d7019ca905ad0888c450dd990db620d339fc5158ecd6b980f35dab687c0880", size = 22687, upload-time = "2025-05-26T10:40:33.774Z" },
 ]
 
 [[package]]
